@@ -140,6 +140,44 @@ Keep payloads small (especially for free tiers). Provide a `refreshContext()` en
 
 ---
 
+## Agent execution model (MVP — decided 2026-06-05)
+
+Agent Mode does **not** let the model emit free-form ExtendScript in the MVP
+(that's the v2 reliability upgrade per PROJECT_BRIEF). Instead the model returns a
+**structured tool-call plan** against the closed MVP tool surface below. This
+keeps execution to tested host functions only (Coding conventions: "keep the MVP
+tool list closed").
+
+Plan shape the agent must return (the adapter parses this out of the CLI's JSON):
+
+```json
+{
+  "summary": "one-line description of the whole task",
+  "steps": [
+    {
+      "tool": "createComp",                 // must be one of the MVP tools
+      "label": "Create 4K comp 'Hero'",     // human-readable, shown in the plan UI
+      "params": { "name": "Hero", "width": 3840, "height": 2160, "fps": 30, "duration": 10 }
+    }
+  ]
+}
+```
+
+Execution rules:
+- The bridge validates every step **before** running: `tool` must be a known MVP
+  tool, and `params` must pass that tool's schema. Unknown tool / bad params →
+  reject the whole plan, surface why (never partially run an invalid plan).
+- The user sees the plan (labels) and approves before anything runs (Golden rule 3).
+- Each approved step maps to exactly one `host/tools/*` function, executed in its
+  own `beginUndoGroup`/`endUndoGroup` (Golden rule 2 — one step = one undo).
+- `safety.js` flags destructive steps (delete/overwrite/`system.callSystem`) for an
+  extra explicit confirm even inside an approved plan.
+- Free-tier: cap steps per turn; on `rateLimited`, persist `sessionId` and offer
+  resume. Model-provided *data* (e.g. an expression string for `setExpression`) is
+  allowed — it's a parameter, not arbitrary script.
+
+---
+
 ## MVP tool surface (build these, test them hard)
 
 Keep it small and reliable. Host functions live in `host/tools/`:
