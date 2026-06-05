@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- CEP panel is local-only for the MVP; restrict to self + inline styles.
+       (No remote loads — see CLAUDE.md "CSP in the panel".) -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;" />
+  <title>Kinea</title>
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <main class="panel">
+    <header class="panel__head">
+      <h1 class="panel__title">Kinea</h1>
+      <span class="panel__tag">skeleton · sprint 1</span>
+    </header>
+
+    <section class="panel__body">
+      <p class="panel__hint">
+        Round-trip check: panel &rarr; host (<code>evalScript</code>) &rarr; AE &rarr; JSON back.
+      </p>
+
+      <div class="panel__actions">
+        <button id="btn-ping" class="btn btn--ghost" type="button">Ping host</button>
+        <button id="btn-context" class="btn btn--ghost" type="button">Read context</button>
+        <button id="btn-solid" class="btn btn--primary" type="button">Create red solid</button>
+      </div>
+    </section>
+
+    <footer class="panel__foot">
+      <pre id="status" class="status" aria-live="polite">Ready.</pre>
+    </footer>
+  </main>
+
+  <!-- Adobe-provided global; defines window.CSInterface. Must load before main.js. -->
+  <script src="./lib/CSInterface.js"></script>
+  <!-- Classic script (NOT type="module"): native ES modules are fetched with
+       CORS and silently fail from the file:// origin CEP uses. No bundler, so
+       we use plain scripts + globals. -->
+  <script src="./js/main.js"></script>
+</body>
+</html>

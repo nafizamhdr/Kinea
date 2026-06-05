@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CEF remote debugging. With the panel open in AE, browse to
+     http://localhost:8088 in Chrome to inspect the panel. -->
+<ExtensionList>
+  <Extension Id="com.kinea.panel">
+    <HostList>
+      <Host Name="AEFT" Port="8088"/>
+    </HostList>
+  </Extension>
+</ExtensionList>

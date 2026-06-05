@@ -1,0 +1,11 @@
+{
+  "name": "kinea",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Kinea — an AI agent extension for Adobe After Effects (CEP). Bring your own CLI agent.",
+  "author": "Nafiza",
+  "license": "UNLICENSED",
+  "scripts": {
+    "dev-install": "powershell -ExecutionPolicy Bypass -File ./scripts/dev-install.ps1"
+  }
+}

@@ -1,0 +1,10 @@
+node_modules/
+*.zxp
+*.p12
+.DS_Store
+Thumbs.db
+*.log
+certificate.p12
+
+# Office temp/lock files
+~$*
