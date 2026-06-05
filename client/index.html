@@ -13,20 +13,30 @@
   <main class="panel">
     <header class="panel__head">
       <h1 class="panel__title">Kinea</h1>
-      <span class="panel__tag">skeleton · sprint 1</span>
+      <span class="panel__tag">chat · sprint 3</span>
     </header>
 
     <section class="panel__body">
-      <p class="panel__hint">
-        Round-trip check: panel &rarr; host (<code>evalScript</code>) &rarr; AE &rarr; JSON back.
-      </p>
-
-      <div class="panel__actions">
-        <button id="btn-ping" class="btn btn--ghost" type="button">Ping host</button>
-        <button id="btn-context" class="btn btn--ghost" type="button">Read context</button>
-        <button id="btn-detect" class="btn btn--ghost" type="button">Detect Gemini</button>
-        <button id="btn-solid" class="btn btn--primary" type="button">Create red solid</button>
+      <div id="chat-log" class="chat-log" aria-live="polite">
+        <div class="chat-msg chat-msg--kinea">Chat Mode (read-only). Ask about your comp,
+          effects, or expressions. Kinea sees your active composition.</div>
       </div>
+
+      <div class="chat-input">
+        <textarea id="chat-input" class="chat-input__field" rows="2"
+                  placeholder="Ask Kinea… (Enter to send, Shift+Enter for newline)"></textarea>
+        <button id="btn-send" class="btn btn--primary" type="button">Send</button>
+      </div>
+
+      <details class="devtools">
+        <summary>Dev tools</summary>
+        <div class="panel__actions">
+          <button id="btn-ping" class="btn btn--ghost" type="button">Ping host</button>
+          <button id="btn-context" class="btn btn--ghost" type="button">Read context</button>
+          <button id="btn-detect" class="btn btn--ghost" type="button">Detect Gemini</button>
+          <button id="btn-solid" class="btn btn--ghost" type="button">Create red solid</button>
+        </div>
+      </details>
     </section>
 
     <footer class="panel__foot">

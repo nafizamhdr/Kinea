@@ -118,3 +118,45 @@ the panel. No prompting yet — this validates the panel ↔ Node ↔ CLI path.
 > (`node -e "require('./bridge/bridge.js').detectProvider('gemini')"`) — syntax
 > and the not-found path are already confirmed; AE only needs to confirm the
 > in-panel `require` + the found path.
+
+---
+
+## Sprint 3b — Chat Mode (read-only, Gemini)
+
+**Goal:** type a question in the panel → Kinea refreshes the AE context
+(read-only) → asks Gemini headless → shows a project-aware answer. No mutation.
+
+Implementation notes:
+- Gemini is run headless: `gemini -o json --skip-trust --approval-mode plan
+  -m <model> -p " "` with the full prompt piped via **stdin** (avoids Windows
+  command-line escaping). `plan` mode keeps it read-only and yields clean text.
+- Runs in an empty temp dir so Gemini's tools have nothing to touch.
+- `session_id` is reused via `--resume` for multi-turn continuity.
+- Already validated end-to-end outside AE with plain Node (correct, context-aware
+  answers, clean output, session id returned). AE needs to confirm the in-panel
+  flow + UI.
+
+### Reload
+- Live via symlink — close & reopen the **Kinea** panel (restart AE if stale).
+
+### Verify
+1. Open a comp. In the chat box, ask: *"What does my project look like right
+   now?"* → Enter. Expect a "Thinking…" bubble, then an answer that references
+   your comp (name/size) and layers.
+2. Put `wiggle(2,30)` on a layer's Position, select it, ask *"how do I slow down
+   this wiggle?"* → expect advice referencing the expression (e.g. lower the
+   frequency). This proves context (incl. expressions) reaches the model.
+3. Ask a follow-up like *"and to make it smoother?"* → it should stay on topic
+   (session continuity via `--resume`).
+4. **Read-only check:** confirm nothing in the project changed and no undo entry
+   was added by chatting.
+5. (Optional) Dev tools are tucked under the **Dev tools** disclosure — Ping /
+   Read context / Detect Gemini / Create red solid still work there.
+
+### Report back
+- Whether answers are project-aware, response latency (Flash + ~12k-token
+  overhead means a few seconds is normal), any artifact text leaking into
+  answers, and any error bubbles. Check `localhost:8088` console if it hangs.
+
+> Not yet built: Agent Mode (plan → generate ExtendScript → execute in undo
+> group → verify), plan/confirm UI, rate-limit backoff polish (Sprint 4).

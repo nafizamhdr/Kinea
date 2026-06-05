@@ -6,6 +6,7 @@
 // detectProvider(); chat/agent routing arrives in 3b/4.
 
 var adapter = require("./providers/adapter");
+var prompts = require("./prompts");
 var gemini = require("./providers/gemini");
 
 // Provider registry. New providers (claude, codex) register here once they
@@ -50,6 +51,28 @@ function detectProvider(id) {
     });
 }
 
+// Chat Mode (read-only). The panel supplies the already-serialized AE context
+// (it owns the evalScript boundary); the bridge composes the prompt and routes
+// it to the provider. Returns { ok, result:{ text, sessionId, rateLimited }, error }.
+function chat(opts) {
+    opts = opts || {};
+    var id = opts.providerId || "gemini";
+    var p = providers[id];
+    if (!p) return Promise.resolve({ ok: false, error: "Unknown provider: " + id });
+    if (typeof p.run !== "function") {
+        return Promise.resolve({ ok: false, error: "Provider '" + id + "' has no run() yet." });
+    }
+    var prompt = prompts.buildChatPrompt(opts.question || "", opts.context || null);
+    return p.run({ prompt: prompt, model: opts.model, sessionId: opts.sessionId }).then(
+        function (r) {
+            return { ok: !r.error, result: r, error: r.error || null };
+        },
+        function (e) {
+            return { ok: false, error: String(e) };
+        }
+    );
+}
+
 function listProviders() {
     var ids = [];
     for (var k in providers) {
@@ -60,5 +83,6 @@ function listProviders() {
 
 module.exports = {
     detectProvider: detectProvider,
+    chat: chat,
     listProviders: listProviders
 };

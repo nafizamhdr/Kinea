@@ -10,6 +10,13 @@ const btnPing = document.getElementById("btn-ping");
 const btnContext = document.getElementById("btn-context");
 const btnDetect = document.getElementById("btn-detect");
 const btnSolid = document.getElementById("btn-solid");
+const chatLog = document.getElementById("chat-log");
+const chatInput = document.getElementById("chat-input");
+const btnSend = document.getElementById("btn-send");
+
+// Chat session state (persisted in-memory for --resume continuity).
+let chatSessionId = null;
+let chatModel = null; // null -> adapter default (a Flash model)
 
 // --- Node bridge ---------------------------------------------------------
 // With --mixed-context, the panel shares the Node context, so we can require
@@ -139,6 +146,79 @@ btnSolid.addEventListener("click", () => {
     "kinea_createRedSolid()",
     (r) => `Created "${r.layerName}" (layer ${r.layerIndex}) in "${r.compName}" — ${r.width}×${r.height}.`
   );
+});
+
+// --- Chat Mode -----------------------------------------------------------
+
+function appendChat(role, text) {
+  const div = document.createElement("div");
+  const cls = role === "you" ? "chat-msg--you" : role === "err" ? "chat-msg--err" : "chat-msg--kinea";
+  div.className = `chat-msg ${cls}`;
+  div.textContent = text;
+  chatLog.appendChild(div);
+  chatLog.scrollTop = chatLog.scrollHeight;
+  return div;
+}
+
+async function sendChat() {
+  const question = chatInput.value.trim();
+  if (!question) return;
+
+  const b = loadBridge();
+  if (!b || !b.chat) {
+    appendChat("err", "Node bridge unavailable. Try Detect Gemini, or check --enable-nodejs.");
+    return;
+  }
+
+  appendChat("you", question);
+  chatInput.value = "";
+  btnSend.disabled = true;
+  chatInput.disabled = true;
+  const pending = appendChat("kinea", "Thinking…");
+  pending.classList.add("chat-msg--pending");
+  setStatus("Asking Gemini…");
+
+  try {
+    // 1) Refresh AE context (read-only) so the answer is project-aware.
+    const ctxRes = await callHost("kinea_refreshContext('{\"includeTree\":false}')");
+    const context = ctxRes && ctxRes.ok ? ctxRes.result : null;
+
+    // 2) Ask the provider via the bridge.
+    const res = await b.chat({ question, context, model: chatModel, sessionId: chatSessionId });
+
+    pending.remove();
+    if (!res.ok) {
+      const rl = res.result && res.result.rateLimited;
+      const msg = rl
+        ? "Free-tier limit reached. Wait a bit and try again."
+        : (res.error || "Chat failed.");
+      appendChat("err", msg);
+      setStatus(msg, "err");
+      return;
+    }
+
+    const r = res.result;
+    if (r.sessionId) chatSessionId = r.sessionId;
+    appendChat("kinea", r.text || "(empty response)");
+    setStatus(r.rateLimited ? "Answered — near the free-tier limit." : "Ready.", r.rateLimited ? "" : "ok");
+  } catch (e) {
+    pending.remove();
+    appendChat("err", String(e));
+    setStatus(String(e), "err");
+  } finally {
+    btnSend.disabled = false;
+    chatInput.disabled = false;
+    chatInput.focus();
+  }
+}
+
+btnSend.addEventListener("click", sendChat);
+chatInput.addEventListener("keydown", (e) => {
+  // Enter sends; Shift+Enter inserts a newline.
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendChat();
+  }
 });
 
 setStatus("Ready.");
