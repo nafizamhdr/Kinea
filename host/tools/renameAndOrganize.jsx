@@ -23,13 +23,24 @@ function kinea_renameAndOrganize(argsJson) {
         try {
             for (var i = 0; i < items.length; i++) {
                 var it = items[i];
-                var layer = kinea_findLayer(comp, it);
+
+                // Resolve the layer ONLY by layer/index (not `name`, which here
+                // means the *new* name). Avoids the rename ambiguity.
+                var ref = {};
+                if (it.index !== undefined && it.index !== null) ref.index = it.index;
+                else ref.layer = it.layer;
+                var layer = kinea_findLayer(comp, ref);
                 if (!layer) { errors.push("Item " + (i + 1) + ": layer not found"); continue; }
 
-                if (it.newName !== undefined && it.newName !== null && String(it.newName).length) {
-                    layer.name = String(it.newName);
+                // New name from newName, or fall back to `name`.
+                var newName = null;
+                if (it.newName !== undefined && it.newName !== null) newName = it.newName;
+                else if (it.name !== undefined && it.name !== null) newName = it.name;
+                if (newName !== null && String(newName).length) {
+                    layer.name = String(newName);
                     changed++;
                 }
+
                 if (it.label !== undefined && it.label !== null) {
                     var lb = parseInt(it.label, 10);
                     if (lb >= 0 && lb <= 16) { layer.label = lb; changed++; }
@@ -40,8 +51,11 @@ function kinea_renameAndOrganize(argsJson) {
             app.endUndoGroup();
         }
 
-        var result = { changed: changed };
-        if (errors.length) result.errors = errors;
+        var result = { changed: changed, errors: errors };
+        // Surface real failures: nothing changed AND we hit errors => not ok.
+        if (changed === 0 && errors.length) {
+            return JSON.stringify({ ok: false, error: errors.join("; ") });
+        }
         return JSON.stringify({ ok: true, result: result });
     } catch (e) {
         return JSON.stringify({ ok: false, error: String(e) });
