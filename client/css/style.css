@@ -50,6 +50,53 @@ html, body {
   color: var(--text-dim);
 }
 
+/* --- Mode toggle --- */
+.mode {
+  margin-left: auto;
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.mode__btn {
+  appearance: none;
+  border: 0;
+  background: var(--bg-elev);
+  color: var(--text-dim);
+  font-size: 12px;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+.mode__btn--active { background: var(--accent); color: #fff; font-weight: 600; }
+
+/* --- Plan card (Agent Mode) --- */
+.plan-card {
+  align-self: stretch;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--bg-elev);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.plan-card__summary { color: var(--text); line-height: 1.5; }
+.plan-card__steps {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-dim);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.plan-card__steps li { line-height: 1.45; }
+.plan-card__steps li.is-done { color: var(--ok); }
+.plan-card__steps li.is-fail { color: var(--err); }
+.plan-card__steps li.is-running { color: var(--accent); }
+.plan-card__actions { display: flex; gap: 8px; }
+.plan-card__actions .btn { padding: 6px 12px; font-size: 12px; }
+.plan-card--cancelled { opacity: 0.5; border-color: var(--border); }
+
 .panel__body {
   flex: 1 1 auto;
   display: flex;

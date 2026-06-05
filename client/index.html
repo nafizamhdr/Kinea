@@ -13,13 +13,16 @@
   <main class="panel">
     <header class="panel__head">
       <h1 class="panel__title">Kinea</h1>
-      <span class="panel__tag">chat · sprint 3</span>
+      <div class="mode" role="tablist" aria-label="Mode">
+        <button id="mode-chat" class="mode__btn mode__btn--active" type="button" role="tab">Chat</button>
+        <button id="mode-agent" class="mode__btn" type="button" role="tab">Agent</button>
+      </div>
     </header>
 
     <section class="panel__body">
       <div id="chat-log" class="chat-log" aria-live="polite">
-        <div class="chat-msg chat-msg--kinea">Chat Mode (read-only). Ask about your comp,
-          effects, or expressions. Kinea sees your active composition.</div>
+        <div class="chat-msg chat-msg--kinea" id="intro-msg">Chat Mode (read-only). Ask about your
+          comp, effects, or expressions. Kinea sees your active composition.</div>
       </div>
 
       <div class="chat-input">

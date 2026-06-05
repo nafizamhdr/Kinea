@@ -1,6 +1,8 @@
 // Kinea bridge — prompt composition (Node/CommonJS).
 // Keeps model-facing text in one place so providers stay interchangeable.
 
+var tools = require("./tools");
+
 // Chat Mode is READ-ONLY: the model explains / debugs / proposes, but must not
 // claim to have changed the project (Golden rule 1).
 function buildChatPrompt(question, context) {
@@ -23,4 +25,43 @@ function buildChatPrompt(question, context) {
         "\n\n=== USER QUESTION ===\n" + question + "\n";
 }
 
-module.exports = { buildChatPrompt: buildChatPrompt };
+// Catalog of tools the planner is allowed to use (implemented ones only).
+function toolCatalog() {
+    var t = tools.TOOLS;
+    var lines = [];
+    for (var k in t) {
+        if (t.hasOwnProperty(k) && t[k].implemented) {
+            lines.push("- " + k + ": " + t[k].describe);
+        }
+    }
+    return lines.join("\n");
+}
+
+// Agent Mode planner: turn a request into a STRICT JSON tool-call plan against
+// the closed tool surface. Output must be JSON only (CLAUDE.md schema).
+function buildPlanPrompt(question, context) {
+    var ctxStr = "{}";
+    try {
+        if (context) ctxStr = JSON.stringify(context);
+    } catch (e) {}
+
+    var sys = [
+        "You are Kinea's planner for Adobe After Effects (Agent Mode).",
+        "Turn the user's request into a STRICT JSON plan using ONLY the tools listed below.",
+        "Do not invent tools or parameters. If the request needs a capability that is",
+        "not listed, include only the steps you can do and note the gap in 'summary'.",
+        "Respond with JSON ONLY — no prose, no markdown code fences. Exact shape:",
+        '{ "summary": string, "steps": [ { "tool": string, "label": string, "params": object } ] }',
+        "'label' is a short human-readable description of the step shown to the user."
+    ].join(" ");
+
+    return sys +
+        "\n\n=== AVAILABLE TOOLS ===\n" + toolCatalog() +
+        "\n\n=== AE CONTEXT (JSON) ===\n" + ctxStr +
+        "\n\n=== USER REQUEST ===\n" + question + "\n";
+}
+
+module.exports = {
+    buildChatPrompt: buildChatPrompt,
+    buildPlanPrompt: buildPlanPrompt
+};

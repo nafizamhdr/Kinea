@@ -7,6 +7,7 @@
 
 var adapter = require("./providers/adapter");
 var prompts = require("./prompts");
+var safety = require("./safety");
 var gemini = require("./providers/gemini");
 
 // Provider registry. New providers (claude, codex) register here once they
@@ -73,6 +74,62 @@ function chat(opts) {
     );
 }
 
+// Extract a JSON plan object from the model's text (tolerates stray prose by
+// falling back to the outermost { ... }).
+function parsePlanText(text) {
+    if (!text) return null;
+    try { return JSON.parse(String(text).trim()); } catch (e) {}
+    var t = String(text);
+    var first = t.indexOf("{");
+    var last = t.lastIndexOf("}");
+    if (first >= 0 && last > first) {
+        try { return JSON.parse(t.substring(first, last + 1)); } catch (e2) {}
+    }
+    return null;
+}
+
+// Agent Mode planning (no execution — that happens in the panel after the user
+// approves). Returns { ok, result:{ plan, sessionId, rateLimited, raw }, error }.
+// The plan is already VALIDATED against the tool registry here.
+function plan(opts) {
+    opts = opts || {};
+    var id = opts.providerId || "gemini";
+    var p = providers[id];
+    if (!p) return Promise.resolve({ ok: false, error: "Unknown provider: " + id });
+    if (typeof p.run !== "function") {
+        return Promise.resolve({ ok: false, error: "Provider '" + id + "' has no run() yet." });
+    }
+    var prompt = prompts.buildPlanPrompt(opts.question || "", opts.context || null);
+    return p.run({ prompt: prompt, model: opts.model, sessionId: opts.sessionId }).then(
+        function (r) {
+            if (r.error) return { ok: false, result: r, error: r.error };
+            var parsed = parsePlanText(r.text);
+            if (!parsed) {
+                return {
+                    ok: false, result: r,
+                    error: "Could not parse a JSON plan from the model. Raw start: " +
+                           String(r.text || "").substring(0, 200)
+                };
+            }
+            var v = safety.validatePlan(parsed);
+            if (!v.ok) return { ok: false, result: r, error: v.error };
+            return {
+                ok: true,
+                result: {
+                    plan: v.result,
+                    sessionId: r.sessionId,
+                    rateLimited: r.rateLimited,
+                    raw: r.text
+                },
+                error: null
+            };
+        },
+        function (e) {
+            return { ok: false, error: String(e) };
+        }
+    );
+}
+
 function listProviders() {
     var ids = [];
     for (var k in providers) {
@@ -84,5 +141,6 @@ function listProviders() {
 module.exports = {
     detectProvider: detectProvider,
     chat: chat,
+    plan: plan,
     listProviders: listProviders
 };

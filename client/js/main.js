@@ -13,10 +13,13 @@ const btnSolid = document.getElementById("btn-solid");
 const chatLog = document.getElementById("chat-log");
 const chatInput = document.getElementById("chat-input");
 const btnSend = document.getElementById("btn-send");
+const modeChat = document.getElementById("mode-chat");
+const modeAgent = document.getElementById("mode-agent");
 
 // Chat session state (persisted in-memory for --resume continuity).
 let chatSessionId = null;
 let chatModel = null; // null -> adapter default (a Flash model)
+let mode = "chat";    // "chat" | "agent"
 
 // --- Node bridge ---------------------------------------------------------
 // With --mixed-context, the panel shares the Node context, so we can require
@@ -212,12 +215,165 @@ async function sendChat() {
   }
 }
 
-btnSend.addEventListener("click", sendChat);
+// --- Agent Mode: plan -> approve -> execute ------------------------------
+
+async function sendPlan() {
+  const question = chatInput.value.trim();
+  if (!question) return;
+
+  const b = loadBridge();
+  if (!b || !b.plan) {
+    appendChat("err", "Node bridge unavailable. Try Detect Gemini, or check --enable-nodejs.");
+    return;
+  }
+
+  appendChat("you", question);
+  chatInput.value = "";
+  btnSend.disabled = true;
+  chatInput.disabled = true;
+  const pending = appendChat("kinea", "Planning…");
+  pending.classList.add("chat-msg--pending");
+  setStatus("Planning…");
+
+  try {
+    const ctxRes = await callHost("kinea_refreshContext('{\"includeTree\":false}')");
+    const context = ctxRes && ctxRes.ok ? ctxRes.result : null;
+
+    const res = await b.plan({ question, context, model: chatModel, sessionId: chatSessionId });
+    pending.remove();
+
+    if (!res.ok) {
+      const rl = res.result && res.result.rateLimited;
+      const msg = rl
+        ? "Free-tier limit reached. Wait a bit and try again."
+        : (res.error || "Planning failed.");
+      appendChat("err", msg);
+      setStatus(msg, "err");
+      return;
+    }
+
+    if (res.result.sessionId) chatSessionId = res.result.sessionId;
+    renderPlan(res.result.plan);
+    setStatus("Plan ready — review and approve.", "");
+  } catch (e) {
+    pending.remove();
+    appendChat("err", String(e));
+    setStatus(String(e), "err");
+  } finally {
+    btnSend.disabled = false;
+    chatInput.disabled = false;
+    chatInput.focus();
+  }
+}
+
+// Build the evalScript call for one step, escaping the JSON arg safely
+// (Golden rule 6 / escaping gotcha): JSON.stringify twice -> a valid JS string
+// literal containing the JSON text.
+function buildStepScript(step) {
+  const argJson = JSON.stringify(step.params || {});
+  return `${step.hostFn}(${JSON.stringify(argJson)})`;
+}
+
+async function executePlan(plan, stepEls) {
+  for (let i = 0; i < plan.steps.length; i++) {
+    const step = plan.steps[i];
+    const li = stepEls[i];
+    if (li) li.classList.add("is-running");
+    setStatus(`Running step ${i + 1}/${plan.steps.length}: ${step.label}…`);
+
+    const res = await callHost(buildStepScript(step));
+
+    if (li) li.classList.remove("is-running");
+    if (!res.ok) {
+      if (li) li.classList.add("is-fail");
+      appendChat("err", `Step ${i + 1} failed (${step.tool}): ${res.error}`);
+      setStatus(`Stopped at step ${i + 1}: ${res.error}`, "err");
+      return false;
+    }
+    if (li) li.classList.add("is-done");
+  }
+  setStatus("Plan complete.", "ok");
+  appendChat("kinea", "✓ Done — all steps executed.");
+  return true;
+}
+
+function renderPlan(plan) {
+  const card = document.createElement("div");
+  card.className = "plan-card";
+
+  const summary = document.createElement("div");
+  summary.className = "plan-card__summary";
+  summary.textContent = plan.summary || "Proposed plan";
+  card.appendChild(summary);
+
+  const ol = document.createElement("ol");
+  ol.className = "plan-card__steps";
+  const stepEls = [];
+  plan.steps.forEach((s) => {
+    const li = document.createElement("li");
+    li.textContent = s.destructive ? `⚠️ ${s.label}` : s.label;
+    ol.appendChild(li);
+    stepEls.push(li);
+  });
+  card.appendChild(ol);
+
+  const actions = document.createElement("div");
+  actions.className = "plan-card__actions";
+  const approve = document.createElement("button");
+  approve.className = "btn btn--primary";
+  approve.textContent = `Approve & run (${plan.steps.length})`;
+  const cancel = document.createElement("button");
+  cancel.className = "btn btn--ghost";
+  cancel.textContent = "Cancel";
+  actions.appendChild(approve);
+  actions.appendChild(cancel);
+  card.appendChild(actions);
+
+  chatLog.appendChild(card);
+  chatLog.scrollTop = chatLog.scrollHeight;
+
+  approve.addEventListener("click", async () => {
+    approve.disabled = true;
+    cancel.disabled = true;
+    approve.textContent = "Running…";
+    const okAll = await executePlan(plan, stepEls);
+    approve.textContent = okAll ? "Done ✓" : "Stopped";
+  });
+  cancel.addEventListener("click", () => {
+    card.classList.add("plan-card--cancelled");
+    approve.disabled = true;
+    cancel.disabled = true;
+    setStatus("Plan cancelled.", "");
+  });
+}
+
+// --- Send dispatch + mode toggle -----------------------------------------
+
+function onSend() {
+  if (mode === "agent") sendPlan();
+  else sendChat();
+}
+
+function setMode(next) {
+  mode = next;
+  const agent = next === "agent";
+  modeAgent.classList.toggle("mode__btn--active", agent);
+  modeChat.classList.toggle("mode__btn--active", !agent);
+  chatInput.placeholder = agent
+    ? "Describe what to build… (Agent plans, you approve)"
+    : "Ask Kinea… (Enter to send, Shift+Enter for newline)";
+  setStatus(agent ? "Agent Mode — describe a task to plan." : "Chat Mode — read-only.", "");
+}
+
+modeChat.addEventListener("click", () => setMode("chat"));
+modeAgent.addEventListener("click", () => setMode("agent"));
+
+btnSend.addEventListener("click", onSend);
 chatInput.addEventListener("keydown", (e) => {
   // Enter sends; Shift+Enter inserts a newline.
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
-    sendChat();
+    onSend();
   }
 });
 

@@ -158,5 +158,45 @@ Implementation notes:
   overhead means a few seconds is normal), any artifact text leaking into
   answers, and any error bubbles. Check `localhost:8088` console if it hangs.
 
-> Not yet built: Agent Mode (plan → generate ExtendScript → execute in undo
-> group → verify), plan/confirm UI, rate-limit backoff polish (Sprint 4).
+> Chat Mode done.
+
+---
+
+## Sprint 4a — Agent Mode (plan → approve → execute), minimal tools
+
+**Goal:** a request becomes a **visible, validated tool-call plan**; nothing runs
+until you approve; each approved step runs as one host tool inside its own undo
+group. Tools shipped in 4a: **createComp**, **createLayer** (solid/text/null).
+
+How it works (decided in CLAUDE.md): the model returns a structured JSON plan
+against the closed tool list; the bridge validates every step against the tool
+registry **before** anything runs (invalid plan → rejected whole). Already
+validated outside AE with plain Node (a 2-step plan parsed + validated correctly).
+
+### Reload
+- Live via symlink — close & reopen the **Kinea** panel (restart AE if stale).
+
+### Verify
+1. Top-right, switch to the **Agent** tab. The placeholder changes.
+2. Type: *"Create a 1080p comp named Hero at 30fps for 8 seconds, then add a red
+   solid called BG."* → Enter.
+3. Expect a **plan card**: a summary + a numbered step list
+   (1. Create 'Hero'… 2. Add 'BG' red solid…) with **Approve & run** / **Cancel**.
+4. Click **Cancel** first → card dims, nothing happens in AE. Good.
+5. Re-plan and click **Approve & run** → steps turn green one by one; a new comp
+   "Hero" (1920×1080) appears, opens, and gets a red solid "BG".
+6. **Undo check:** each step is its own undo — Ctrl+Z removes the solid, Ctrl+Z
+   again removes the comp (two separate undos).
+7. Try a request needing an unavailable capability (e.g. *"add a glow effect"*) →
+   expect either a plan that only includes doable steps with a note in the
+   summary, or a clean rejection message (no partial/garbage execution).
+8. Switch back to **Chat** → Chat Mode still works and stays read-only.
+
+### Report back
+- Whether the plan looks right, the approve/cancel gate works, both steps execute,
+  undo is one-per-step, and Chat still works. Note planning latency (similar to
+  chat, a few seconds to ~1 min on free Flash).
+
+> Next: Sprint 4b adds the remaining 7 tools (duplicateLayer, setTransformKeyframes,
+> applyEffect, setExpression, findAndFixExpressionError, renameAndOrganize,
+> setEasing); 4c adds destructive-op confirm + 429 backoff/resume.
