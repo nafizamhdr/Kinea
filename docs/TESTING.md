@@ -75,4 +75,46 @@ its layers, transforms, and any expressions — **without mutating anything**
 - Whether the JSON matches the actual comp, any layer type mislabeled, and any
   red error text (check `localhost:8088` console if something looks off).
 
-> Not yet built: provider adapters, Chat/Agent modes, plan/confirm UI (Sprints 3–4).
+> Sprint 2 done. Chat/Agent modes + plan/confirm UI arrive in Sprints 3b–4.
+
+---
+
+## Sprint 3a — Provider detection (Gemini CLI)
+
+**Goal:** the Node bridge resolves the `gemini` binary (even when AE's Node
+context didn't inherit the shell PATH) and reports version + entitled models to
+the panel. No prompting yet — this validates the panel ↔ Node ↔ CLI path.
+
+### Prerequisite (you do this — Kinea never handles credentials)
+1. Install the CLI (Node 18+ is already present):
+   ```
+   npm i -g @google/gemini-cli
+   ```
+2. Authenticate once in your own terminal (free tier, personal Google account):
+   ```
+   gemini
+   ```
+   Follow the Google login prompt, then exit. (Run this in a normal terminal,
+   or type `! gemini` here — it's interactive.)
+
+### Reload
+- Files are live via the symlink — close and reopen the **Kinea** panel
+  (restart AE if it looks stale).
+
+### Verify
+1. **Before installing**, click **Detect Gemini** → expect a red message
+   `Gemini CLI not found. Install it with: npm i -g @google/gemini-cli`.
+2. **After installing + login**, click **Detect Gemini** → expect green:
+   `Gemini detected — <version>`, a `bin:` absolute path, a `models:` list, and
+   a `default:` model.
+3. If you see `Node bridge unavailable…`, the Node context didn't load — tell me
+   (we'll check `--enable-nodejs`/`--mixed-context` and the `localhost:8088`
+   console).
+
+### Report back
+- The exact status text for both before/after, and the `bin:` path shown.
+
+> Note: the bridge was also smoke-tested outside AE with plain Node
+> (`node -e "require('./bridge/bridge.js').detectProvider('gemini')"`) — syntax
+> and the not-found path are already confirmed; AE only needs to confirm the
+> in-panel `require` + the found path.

@@ -8,7 +8,29 @@ const cs = new CSInterface();
 const statusEl = document.getElementById("status");
 const btnPing = document.getElementById("btn-ping");
 const btnContext = document.getElementById("btn-context");
+const btnDetect = document.getElementById("btn-detect");
 const btnSolid = document.getElementById("btn-solid");
+
+// --- Node bridge ---------------------------------------------------------
+// With --mixed-context, the panel shares the Node context, so we can require
+// the bridge directly. Resolve it from the extension root so the path is stable.
+let bridge = null;
+function loadBridge() {
+  if (bridge) return bridge;
+  try {
+    const nodeRequire =
+      (window.cep_node && window.cep_node.require) ||
+      (typeof require !== "undefined" ? require : null);
+    if (!nodeRequire) return null;
+    const path = nodeRequire("path");
+    const extRoot = cs.getSystemPath(SystemPath.EXTENSION);
+    bridge = nodeRequire(path.join(extRoot, "bridge", "bridge.js"));
+  } catch (e) {
+    console.error("Bridge load failed:", e);
+    bridge = null;
+  }
+  return bridge;
+}
 
 /**
  * Render a status line. tone: "" | "ok" | "err".
@@ -76,6 +98,38 @@ btnContext.addEventListener("click", () => {
     },
     "" // neutral tone for a data dump
   );
+});
+
+btnDetect.addEventListener("click", async () => {
+  btnDetect.disabled = true;
+  setStatus("Detecting Gemini CLI…");
+  try {
+    const b = loadBridge();
+    if (!b) {
+      setStatus("Node bridge unavailable — is --enable-nodejs set in the manifest?", "err");
+      return;
+    }
+    const res = await b.detectProvider("gemini");
+    if (!res.ok) {
+      setStatus(res.error, "err");
+      return;
+    }
+    const r = res.result;
+    if (!r.found) {
+      setStatus("Gemini CLI not found.\nInstall it with:\n  npm i -g @google/gemini-cli", "err");
+      return;
+    }
+    const lines = [
+      `Gemini detected — ${r.version}`,
+      `bin: ${r.binPath}`,
+      `models: ${r.models.join(", ")}`,
+      `default: ${r.defaultModel}`,
+    ];
+    if (r.error) lines.push(`note: ${r.error}`);
+    setStatus(lines.join("\n"), r.error ? "" : "ok");
+  } finally {
+    btnDetect.disabled = false;
+  }
 });
 
 btnSolid.addEventListener("click", () => {
