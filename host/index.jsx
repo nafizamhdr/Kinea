@@ -7,9 +7,14 @@
 
 #include "lib/json2.js"
 #include "context.jsx"
+#include "tools/_shared.jsx"
 #include "tools/createSolid.jsx"
 #include "tools/createComp.jsx"
 #include "tools/createLayer.jsx"
+#include "tools/duplicateLayer.jsx"
+#include "tools/setExpression.jsx"
+#include "tools/setTransformKeyframes.jsx"
+#include "tools/renameAndOrganize.jsx"
 
 // Sprint-1 smoke test: confirms the evalScript round-trip and JSON contract
 // without touching the project. Read-only, safe in either mode.

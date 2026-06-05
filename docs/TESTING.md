@@ -197,6 +197,44 @@ validated outside AE with plain Node (a 2-step plan parsed + validated correctly
   undo is one-per-step, and Chat still works. Note planning latency (similar to
   chat, a few seconds to ~1 min on free Flash).
 
-> Next: Sprint 4b adds the remaining 7 tools (duplicateLayer, setTransformKeyframes,
-> applyEffect, setExpression, findAndFixExpressionError, renameAndOrganize,
-> setEasing); 4c adds destructive-op confirm + 429 backoff/resume.
+> Sprint 4a verified.
+
+---
+
+## Sprint 4b-1 — More Agent tools
+
+**New tools:** `duplicateLayer`, `setExpression`, `setTransformKeyframes`,
+`renameAndOrganize`. (4b-2 will add `setEasing`, `applyEffect`,
+`findAndFixExpressionError`.) Planner + validation already confirmed outside AE
+(a 3-step expression+keyframes+rename plan parsed and validated correctly).
+
+> ExtendScript caveat: I can't run AE, so test each tool against a scratch comp.
+> If any AE call behaves unexpectedly, paste the error — some APIs vary by version.
+
+### Reload
+- Live via symlink — close & reopen the **Kinea** panel (restart AE if stale).
+
+### Verify (Agent tab)
+1. **setExpression + setTransformKeyframes + renameAndOrganize** (one plan):
+   make a comp + a solid (or reuse one), select the solid, then ask:
+   *"Add wiggle(3,50) to the selected layer's Position, animate its Opacity from
+   0 at 0s to 100 at 1s, rename it Hero and set label 9."*
+   Approve → expect: Position shows the wiggle expression, Opacity has 2
+   keyframes (0→100), layer renamed **Hero** with a label color. Each step = one
+   undo.
+2. **duplicateLayer:** select a layer, ask *"duplicate the selected layer and
+   name the copy BG Copy."* → a duplicate appears named "BG Copy".
+3. **Property naming:** try *"set Rotation to 0 at 0s and 360 at 2s on Hero"* →
+   2 rotation keyframes (a full spin).
+4. **Error path:** ask to set an expression on a non-existent layer/property →
+   expect a clean red "Step failed: …" message, no crash, no partial mess.
+5. Quick dev-harness checks (Dev tools disclosure) still work; Chat still
+   read-only.
+
+### Report back
+- Per tool: did it do the right thing in AE, is undo one-per-step, and any
+  ExtendScript error text. Especially confirm property resolution (Position /
+  Scale / Rotation / Opacity) works on your AE 2020.
+
+> Next: 4b-2 (setEasing, applyEffect, findAndFixExpressionError), then 4c
+> (destructive-op confirm + 429 backoff/resume).
