@@ -371,6 +371,36 @@ Clicking **Detect Gemini** (Dev tools) re-checks and re-enables Send.
 ### Report back
 - Does the intro reflect your real setup on load? Send correctly enabled/blocked?
 
-> Next: 5c — packaging a signed `.zxp` + a Claude Code adapter behind the same
-> interface. Both need a quick decision from you (signing cert vs self-signed;
-> whether Claude Code is installed or we scaffold it).
+> Sprint 5b verified.
+
+---
+
+## Sprint 5c — Claude Code adapter (scaffold) + provider selection
+
+(Packaging `.zxp` was deferred by choice; keep using dev-install for now.)
+
+- `bridge/providers/claude.js` implements the adapter contract
+  (detectInstalled/run/listEntitledModels/defaultModel) for Claude Code's
+  headless mode (`claude -p --output-format json`, prompt via stdin, `--resume`).
+- Registered in the bridge alongside Gemini; a **Provider** dropdown in Dev tools
+  lets you switch. Onboarding re-checks the chosen provider and gates Send.
+- Detection verified outside AE against your real install: Claude Code v2.1.167
+  found at `~/.local/bin/claude.exe`. (run()/streaming not exercised — that would
+  spend Anthropic credits; offered separately.)
+
+### Reload
+- Close & reopen the panel.
+
+### Verify
+1. Open **Dev tools** → the **Provider** dropdown lists `gemini` and `claude`.
+2. Leave it on `gemini` → everything works as before (intro shows Gemini ready).
+3. (Optional) Switch to `claude` → onboarding re-checks; since Claude Code is
+   installed it should say *"Ready — claude 2.1.167 detected (model: sonnet)"*
+   and enable Send. Switch back to `gemini` for normal MVP use.
+
+> Only flip to `claude` and actually send if you're OK spending Anthropic
+> credits — Gemini stays the free MVP default.
+
+> MVP milestones 1–5 are now functionally complete (packaging deferred). Optional
+> follow-ups: confirm Claude run() end-to-end, Claude streaming (runStream), and
+> signed `.zxp` packaging when you're ready to distribute.

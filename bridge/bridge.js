@@ -9,6 +9,7 @@ var adapter = require("./providers/adapter");
 var prompts = require("./prompts");
 var safety = require("./safety");
 var gemini = require("./providers/gemini");
+var claude = require("./providers/claude");
 
 // Provider registry. New providers (claude, codex) register here once they
 // implement the adapter contract.
@@ -20,6 +21,7 @@ function register(p) {
     providers[p.id] = p;
 }
 register(gemini);
+register(claude); // phase-5 scaffold; detected only if Claude Code is installed
 
 // Detect whether a provider's CLI is installed + which models the account can
 // use. Returns the standard { ok, result|error } envelope the panel expects.

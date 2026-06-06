@@ -18,12 +18,20 @@ const modeChat = document.getElementById("mode-chat");
 const modeAgent = document.getElementById("mode-agent");
 const simRateLimit = document.getElementById("sim-ratelimit");
 const simDestructive = document.getElementById("sim-destructive");
+const providerSelect = document.getElementById("provider-select");
 
 // Chat session state (persisted in-memory for --resume continuity).
 let chatSessionId = null;
-let chatModel = null; // null -> adapter default (a Flash model)
-let mode = "chat";    // "chat" | "agent"
-let rlAttempt = 0;    // rate-limit backoff counter (resets on success)
+let chatModel = null;          // null -> adapter default
+let activeProvider = "gemini"; // selectable; defaults to the MVP provider
+let mode = "chat";             // "chat" | "agent"
+let rlAttempt = 0;             // rate-limit backoff counter (resets on success)
+
+// Install hints per provider, shown during onboarding if the CLI is missing.
+const INSTALL_HINTS = {
+  gemini: "1) Install:  npm i -g @google/gemini-cli\n2) Log in:  run  gemini  in a terminal → choose “Login with Google” (free).",
+  claude: "1) Install:  npm i -g @anthropic-ai/claude-code\n2) Log in:  run  claude  once in a terminal and sign in.",
+};
 
 // --- Node bridge ---------------------------------------------------------
 // With --mixed-context, the panel shares the Node context, so we can require
@@ -137,14 +145,14 @@ btnDetect.addEventListener("click", async () => {
       setStatus("Node bridge unavailable — is --enable-nodejs set in the manifest?", "err");
       return;
     }
-    const res = await b.detectProvider("gemini");
+    const res = await b.detectProvider(activeProvider);
     if (!res.ok) {
       setStatus(res.error, "err");
       return;
     }
     const r = res.result;
     if (!r.found) {
-      setStatus("Gemini CLI not found.\nInstall it with:\n  npm i -g @google/gemini-cli", "err");
+      setStatus(`${activeProvider} CLI not found.\n${INSTALL_HINTS[activeProvider] || ""}`, "err");
       return;
     }
     const lines = [
@@ -254,7 +262,7 @@ async function sendChat(retryQuestion) {
 
     // 2) Ask the provider via the bridge (streamed).
     const res = await b.chat(
-      { question, context, model: chatModel, sessionId: chatSessionId, simulateRateLimit: simRL },
+      { question, context, model: chatModel, sessionId: chatSessionId, providerId: activeProvider, simulateRateLimit: simRL },
       onChunk
     );
 
@@ -314,7 +322,7 @@ async function sendPlan(retryQuestion) {
     const ctxRes = await callHost("kinea_refreshContext('{\"includeTree\":false}')");
     const context = ctxRes && ctxRes.ok ? ctxRes.result : null;
 
-    const res = await b.plan({ question, context, model: chatModel, sessionId: chatSessionId, simulateRateLimit: simRL });
+    const res = await b.plan({ question, context, model: chatModel, sessionId: chatSessionId, providerId: activeProvider, simulateRateLimit: simRL });
     pending.remove();
     if (res.result && res.result.sessionId) chatSessionId = res.result.sessionId;
 
@@ -504,6 +512,22 @@ function setReady(ready) {
   btnSend.disabled = !ready;
 }
 
+function populateProviders(b) {
+  if (!providerSelect) return;
+  let ids = [];
+  try { ids = b.listProviders(); } catch (e) {}
+  if (!ids.length) ids = ["gemini"];
+  providerSelect.innerHTML = "";
+  ids.forEach((id) => {
+    const opt = document.createElement("option");
+    opt.value = id;
+    opt.textContent = id;
+    providerSelect.appendChild(opt);
+  });
+  if (ids.indexOf(activeProvider) < 0) activeProvider = ids[0];
+  providerSelect.value = activeProvider;
+}
+
 async function init() {
   setStatus("Checking setup…");
   setReady(false);
@@ -519,31 +543,39 @@ async function init() {
     return;
   }
 
+  populateProviders(b);
+
   try {
-    const res = await b.detectProvider("gemini");
+    const res = await b.detectProvider(activeProvider);
     if (res.ok && res.result.found) {
       chatModel = res.result.defaultModel || null;
       setIntro(
-        `Ready — Gemini ${res.result.version} detected (model: ${res.result.defaultModel}).\n` +
+        `Ready — ${activeProvider} ${res.result.version} detected (model: ${res.result.defaultModel}).\n` +
         "Chat is read-only Q&A about your comp. Switch to Agent to plan & build."
       );
       setStatus("Ready.", "ok");
       setReady(true);
     } else {
+      const hint = INSTALL_HINTS[activeProvider] || "Install the provider's CLI and log in.";
       setIntro(
-        "⚠️ Gemini CLI not found. To finish setup:\n" +
-        "1) Install:  npm i -g @google/gemini-cli\n" +
-        "2) Log in:  run  gemini  in a terminal → choose “Login with Google” (free).\n" +
-        "Then reopen this panel and I'll detect it.",
+        `⚠️ ${activeProvider} CLI not found. To finish setup:\n${hint}\n` +
+        "Then reopen this panel (or click Detect Gemini in Dev tools).",
         true
       );
-      setStatus("Gemini CLI not found.", "err");
-      // Still allow retry: clicking Detect Gemini (Dev tools) re-checks.
+      setStatus(`${activeProvider} CLI not found.`, "err");
     }
   } catch (e) {
     setIntro("Setup check failed: " + e, true);
     setStatus("Setup check failed.", "err");
   }
+}
+
+if (providerSelect) {
+  providerSelect.addEventListener("change", () => {
+    activeProvider = providerSelect.value;
+    chatSessionId = null; // new provider -> fresh session
+    init();
+  });
 }
 
 init();
