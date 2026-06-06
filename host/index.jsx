@@ -15,6 +15,9 @@
 #include "tools/setExpression.jsx"
 #include "tools/setTransformKeyframes.jsx"
 #include "tools/renameAndOrganize.jsx"
+#include "tools/setEasing.jsx"
+#include "tools/applyEffect.jsx"
+#include "tools/findAndFixExpressionError.jsx"
 
 // Sprint-1 smoke test: confirms the evalScript round-trip and JSON contract
 // without touching the project. Read-only, safe in either mode.

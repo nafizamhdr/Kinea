@@ -306,6 +306,17 @@ async function executePlan(plan, stepEls) {
       return false;
     }
     if (li) li.classList.add("is-done");
+
+    // Diagnostic tool: surface its findings (it's read-only, no mutation).
+    if (step.tool === "findAndFixExpressionError") {
+      const r = res.result;
+      if (r && r.errors && r.errors.length) {
+        appendChat("kinea", "Expression errors found:\n" +
+          r.errors.map((e) => `• ${e.layer} → ${e.property}: ${e.error}`).join("\n"));
+      } else {
+        appendChat("kinea", "No expression errors found.");
+      }
+    }
   }
   setStatus("Plan complete.", "ok");
   appendChat("kinea", "✓ Done — all steps executed.");

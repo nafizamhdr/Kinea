@@ -236,5 +236,41 @@ validated outside AE with plain Node (a 2-step plan parsed + validated correctly
   ExtendScript error text. Especially confirm property resolution (Position /
   Scale / Rotation / Opacity) works on your AE 2020.
 
-> Next: 4b-2 (setEasing, applyEffect, findAndFixExpressionError), then 4c
-> (destructive-op confirm + 429 backoff/resume).
+> Sprint 4b-1 verified (rename was a Source/Layer-Name display thing, not a bug).
+
+---
+
+## Sprint 4b-2 — final Agent tools (all 9 MVP tools now live)
+
+**New tools:** `setEasing`, `applyEffect`, `findAndFixExpressionError`. Planner +
+validation confirmed outside AE (a keyframes→easyEase→Gaussian-Blur plan parsed
+correctly, including the effect matchName `ADBE Gaussian Blur 2`).
+
+> Reminder: restart AE after this (host `.jsx` only reloads at panel load).
+
+### Verify (Agent tab)
+1. **setTransformKeyframes + setEasing** (one plan): with a layer selected, ask:
+   *"Move the selected layer position from [0,540] at 0s to [1920,540] at 2s and
+   apply easy ease to those keyframes."* → Approve → 2 Position keyframes that
+   ease (keyframe icons become hourglors, not linear). Check the graph/keyframe
+   shape if unsure.
+2. **applyEffect:** *"add a Gaussian Blur to the selected layer."* → the layer
+   gets a Gaussian Blur in Effect Controls. Try a made-up effect (*"add a
+   flibber effect"*) → expect a clean "Effect not available" error, no crash.
+3. **findAndFixExpressionError:** put a deliberately broken expression on a
+   property (e.g. `thisLayer.nonsense()` on Opacity), then ask *"find expression
+   errors."* → Kinea should reply with a bubble listing the layer/property and
+   the error text. With no broken expressions, it says "No expression errors
+   found." (This tool is read-only — it reports; it does not change anything.)
+4. **Full mini-demo (optional):** *"Create a 1080p comp, add a red solid, give
+   its Position a wiggle(2,40) expression, and animate Opacity 0→100 over 1s with
+   easy ease."* → review plan → approve → watch it build.
+
+### Report back
+- Per tool: correct result in AE, one-undo-per-step, and any ExtendScript errors.
+- Especially confirm `setEasing` on **Position** (spatial) works — it retries the
+  ease arrays at dimension 1 if the per-dimension call is rejected.
+
+> Next: Sprint 4c — destructive-op confirmation (none of the 9 tools delete yet,
+> so this is the safety scaffold) + simulated 429 backoff/resume. Then Sprint 5
+> polish (streaming for latency, onboarding, signed .zxp).

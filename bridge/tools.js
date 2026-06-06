@@ -65,10 +65,36 @@ var TOOLS = {
                   "label 0 = none; 1..16 are AE label colors."
     },
 
-    // --- roadmap (Sprint 4b-2), not yet exposed to the planner ---
-    applyEffect:               { implemented: false },
-    findAndFixExpressionError: { implemented: false },
-    setEasing:                 { implemented: false }
+    setEasing: {
+        hostFn: "kinea_setEasing",
+        implemented: true,
+        destructive: false,
+        required: ["property"],
+        describe: "Apply easing to a property's EXISTING keyframes. params: layer " +
+                  "(name/index, optional), property ('Position'|'Scale'|'Rotation'|" +
+                  "'Opacity', required), easing ('easyEase'|'easeIn'|'easeOut', " +
+                  "default easyEase), influence (0.1..100, default 33.33), " +
+                  "keyIndices (optional array of 1-based keyframe indices; default all)."
+    },
+    applyEffect: {
+        hostFn: "kinea_applyEffect",
+        implemented: true,
+        destructive: false,
+        required: ["effect"],
+        describe: "Apply an effect to a layer. params: layer (name/index, optional), " +
+                  "effect (exact AE effect display name or matchName like " +
+                  "'ADBE Gaussian Blur 2', required), instanceName (string, optional), " +
+                  "settings (optional object of { paramName: value })."
+    },
+    findAndFixExpressionError: {
+        hostFn: "kinea_findAndFixExpressionError",
+        implemented: true,
+        destructive: false,
+        required: [],
+        describe: "Scan for expression errors and report them (read-only; does not " +
+                  "change anything). Use this to locate broken expressions, then " +
+                  "propose a fix via setExpression. params: maxLayers, maxFindings (optional)."
+    }
 };
 
 module.exports = { TOOLS: TOOLS };
