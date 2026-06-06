@@ -341,6 +341,36 @@ valid planning.
 - Does Chat feel responsive now? Any leftover artifact text? Roughly how long
   until the first words appear vs the full answer.
 
-> Next in Sprint 5: 5b onboarding (startup Node/Gemini detection + guidance) and
-> graceful errors; 5c packaging (signed `.zxp`) + Claude Code adapter — those two
-> need your input (signing cert; whether you have Claude Code installed).
+> Sprint 5a verified.
+
+---
+
+## Sprint 5b — Onboarding + graceful errors
+
+On panel load Kinea now checks the setup and guides you:
+- No Node bridge → clear message about `--enable-nodejs`.
+- Gemini not installed/logged in → step-by-step install + login guidance, and
+  **Send stays disabled** until a provider is ready.
+- Gemini ready → intro shows the detected version + model; Send enabled.
+Clicking **Detect Gemini** (Dev tools) re-checks and re-enables Send.
+
+### Reload
+- Close & reopen the panel (restart AE if host looks stale).
+
+### Verify
+1. Normal case: open the panel → the intro bubble should say
+   *"Ready — Gemini <version> detected (model: …)"* and Send is enabled.
+2. Ask something → still works (and streams).
+3. (Optional) Simulate "not installed": rename/remove gemini from PATH, reopen
+   the panel → intro shows the install+login steps and **Send is disabled**.
+   Restore gemini, click **Detect Gemini** → Send re-enables.
+4. Error grace: switch to Agent, send a request with **no comp open** for a step
+   that needs one → you get a clean "Step failed: No active composition…" rather
+   than a crash.
+
+### Report back
+- Does the intro reflect your real setup on load? Send correctly enabled/blocked?
+
+> Next: 5c — packaging a signed `.zxp` + a Claude Code adapter behind the same
+> interface. Both need a quick decision from you (signing cert vs self-signed;
+> whether Claude Code is installed or we scaffold it).

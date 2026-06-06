@@ -155,6 +155,9 @@ btnDetect.addEventListener("click", async () => {
     ];
     if (r.error) lines.push(`note: ${r.error}`);
     setStatus(lines.join("\n"), r.error ? "" : "ok");
+    // Re-enable sending if a previous onboarding check had blocked it.
+    chatModel = r.defaultModel || chatModel;
+    setReady(true);
   } finally {
     btnDetect.disabled = false;
   }
@@ -487,4 +490,60 @@ chatInput.addEventListener("keydown", (e) => {
   }
 });
 
-setStatus("Ready.");
+// --- Onboarding: check the setup on panel load and guide if something's missing.
+
+function setIntro(text, isError) {
+  const intro = document.getElementById("intro-msg");
+  if (!intro) return;
+  intro.textContent = text;
+  intro.className = "chat-msg " + (isError ? "chat-msg--err" : "chat-msg--kinea");
+}
+
+function setReady(ready) {
+  // Block sending until the provider is usable; keeps errors graceful.
+  btnSend.disabled = !ready;
+}
+
+async function init() {
+  setStatus("Checking setup…");
+  setReady(false);
+
+  const b = loadBridge();
+  if (!b) {
+    setIntro(
+      "⚠️ Node bridge unavailable — the panel can't reach the CLI.\n" +
+      "Ensure the manifest enables Node (--enable-nodejs) and reopen the panel.",
+      true
+    );
+    setStatus("Node bridge unavailable.", "err");
+    return;
+  }
+
+  try {
+    const res = await b.detectProvider("gemini");
+    if (res.ok && res.result.found) {
+      chatModel = res.result.defaultModel || null;
+      setIntro(
+        `Ready — Gemini ${res.result.version} detected (model: ${res.result.defaultModel}).\n` +
+        "Chat is read-only Q&A about your comp. Switch to Agent to plan & build."
+      );
+      setStatus("Ready.", "ok");
+      setReady(true);
+    } else {
+      setIntro(
+        "⚠️ Gemini CLI not found. To finish setup:\n" +
+        "1) Install:  npm i -g @google/gemini-cli\n" +
+        "2) Log in:  run  gemini  in a terminal → choose “Login with Google” (free).\n" +
+        "Then reopen this panel and I'll detect it.",
+        true
+      );
+      setStatus("Gemini CLI not found.", "err");
+      // Still allow retry: clicking Detect Gemini (Dev tools) re-checks.
+    }
+  } catch (e) {
+    setIntro("Setup check failed: " + e, true);
+    setStatus("Setup check failed.", "err");
+  }
+}
+
+init();
