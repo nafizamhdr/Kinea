@@ -384,9 +384,13 @@ Clicking **Detect Gemini** (Dev tools) re-checks and re-enables Send.
   headless mode (`claude -p --output-format json`, prompt via stdin, `--resume`).
 - Registered in the bridge alongside Gemini; a **Provider** dropdown in Dev tools
   lets you switch. Onboarding re-checks the chosen provider and gates Send.
-- Detection verified outside AE against your real install: Claude Code v2.1.167
-  found at `~/.local/bin/claude.exe`. (run()/streaming not exercised — that would
-  spend Anthropic credits; offered separately.)
+- Detection AND run() verified outside AE against the real install: Claude Code
+  v2.1.167; a chat returned a correct, clean answer in ~5s with a session id.
+- Cost control: the adapter now ALWAYS passes `--model sonnet` (default) so it
+  never inherits the user's Claude Code default (which may be Opus, ~20x cost).
+- Claude is fast enough (~5s) that non-streaming via run() is fine; true token
+  streaming (`--include-partial-messages`) is an optional later add (Claude
+  returns the full answer in one block otherwise).
 
 ### Reload
 - Close & reopen the panel.
@@ -394,12 +398,12 @@ Clicking **Detect Gemini** (Dev tools) re-checks and re-enables Send.
 ### Verify
 1. Open **Dev tools** → the **Provider** dropdown lists `gemini` and `claude`.
 2. Leave it on `gemini` → everything works as before (intro shows Gemini ready).
-3. (Optional) Switch to `claude` → onboarding re-checks; since Claude Code is
-   installed it should say *"Ready — claude 2.1.167 detected (model: sonnet)"*
-   and enable Send. Switch back to `gemini` for normal MVP use.
+3. Switch to `claude` → onboarding says *"Ready — claude 2.1.167 detected
+   (model: sonnet)"* and Send enables. Send a question → you get an answer in a
+   few seconds (non-streamed). Switch back to `gemini` for free use.
 
-> Only flip to `claude` and actually send if you're OK spending Anthropic
-> credits — Gemini stays the free MVP default.
+> Claude works but spends Anthropic credits (sonnet is the cheap default we pin).
+> Gemini stays the free MVP default.
 
 > MVP milestones 1–5 are now functionally complete (packaging deferred). Optional
 > follow-ups: confirm Claude run() end-to-end, Claude streaming (runStream), and

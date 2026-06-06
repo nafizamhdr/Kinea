@@ -95,8 +95,10 @@ function run(params) {
             return;
         }
         var prompt = params.prompt || "";
-        var cmd = '"' + binPath + '" -p --output-format json';
-        if (params.model) cmd += " --model " + params.model;
+        // Always pin a model (default sonnet) so we never inherit the user's
+        // Claude Code default (which may be Opus and ~20x the cost).
+        var model = params.model || defaultModel();
+        var cmd = '"' + binPath + '" -p --output-format json --model ' + model;
         if (params.sessionId) cmd += " --resume " + params.sessionId;
 
         var cp = child_process.exec(cmd, {
