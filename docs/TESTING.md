@@ -405,6 +405,39 @@ Clicking **Detect Gemini** (Dev tools) re-checks and re-enables Send.
 > Claude works but spends Anthropic credits (sonnet is the cheap default we pin).
 > Gemini stays the free MVP default.
 
-> MVP milestones 1–5 are now functionally complete (packaging deferred). Optional
-> follow-ups: confirm Claude run() end-to-end, Claude streaming (runStream), and
-> signed `.zxp` packaging when you're ready to distribute.
+> MVP milestones 1–5 functionally complete (packaging deferred).
+
+---
+
+## Sprint 5d — reliability polish (#4 verify-refresh, #3 429, #5 Claude streaming)
+
+1. **Verify + refresh (Agent loop step 6):** each executed step now shows what it
+   actually did (e.g. *"Create comp → Hero 1920×1080"*), and after the plan Kinea
+   re-reads AE state and confirms *"Verified — active comp 'X', N layer(s)."*
+2. **Hardened rate-limit detection:** broader matcher (429 / RESOURCE_EXHAUSTED /
+   quota / UNAVAILABLE / overloaded / 503 …) for both providers, plus Gemini
+   stream `result` non-success events. (Real free-tier 429 can't be force-tested
+   without exhausting quota; the simulate toggle still exercises the recovery UI.)
+3. **Claude streaming:** Claude now streams too (verified: clean token deltas,
+   ~4s, session id). Both providers stream in Chat.
+
+### Reload
+- Close & reopen the panel (restart AE for host changes — though these are bridge/
+  panel only, a panel reopen is enough).
+
+### Verify
+1. **Agent verify:** run an Agent plan (e.g. the bird prompt). Each step line
+   should gain a *"→ …"* detail as it completes, and the final bubble should read
+   *"✓ Done. Verified — active comp '…', N layer(s)."*
+2. **Claude streaming:** Dev tools → Provider → `claude` → ask a question in Chat
+   → the answer should stream in progressively (not one block). Switch back to
+   `gemini`.
+3. **Rate-limit (still simulated):** Dev tools → Simulate rate limit → send → the
+   recoverable backoff bubble appears for both providers.
+
+### Report back
+- Per-step "→" details + final "Verified" line look right; Claude streams; sim
+  rate-limit still recovers.
+
+> Remaining MVP polish: #2 model-picker UI (entitled models) and #1 signed `.zxp`
+> (deferred by choice). Out-of-scope items (shape layers, etc.) tracked separately.

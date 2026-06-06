@@ -367,6 +367,24 @@ function buildStepScript(step) {
   return `${step.hostFn}(${JSON.stringify(argJson)})`;
 }
 
+// Short, human-readable confirmation of what a step actually did (from the host
+// tool's returned result) — this is the per-step verification surfaced to the user.
+function summarizeResult(tool, r) {
+  if (!r || typeof r !== "object") return "";
+  switch (tool) {
+    case "createComp": return `${r.name} ${r.width}×${r.height} @${r.fps}fps`;
+    case "createLayer": return `${r.name} (${r.type})`;
+    case "duplicateLayer": return `${r.name}`;
+    case "setTransformKeyframes": return `${r.keyframes} key(s) on ${r.property}`;
+    case "setExpression": return `${r.property}: ${r.expression}`;
+    case "setEasing": return `${r.keysEased} key(s) eased`;
+    case "applyEffect": return `${r.effect}`;
+    case "renameAndOrganize": return `${r.changed} change(s)`;
+    case "findAndFixExpressionError": return `${r.count} error(s) found`;
+    default: return "";
+  }
+}
+
 async function executePlan(plan, stepEls) {
   for (let i = 0; i < plan.steps.length; i++) {
     const step = plan.steps[i];
@@ -383,7 +401,11 @@ async function executePlan(plan, stepEls) {
       setStatus(`Stopped at step ${i + 1}: ${res.error}`, "err");
       return false;
     }
-    if (li) li.classList.add("is-done");
+    if (li) {
+      li.classList.add("is-done");
+      const detail = summarizeResult(step.tool, res.result);
+      if (detail) li.textContent = `${step.label}  → ${detail}`; // verify: show what happened
+    }
 
     // Diagnostic tool: surface its findings (it's read-only, no mutation).
     if (step.tool === "findAndFixExpressionError") {
@@ -396,8 +418,16 @@ async function executePlan(plan, stepEls) {
       }
     }
   }
+
+  // Verify + refresh (Agent loop step 6): re-read AE state to confirm the result.
+  const verify = await callHost("kinea_refreshContext('{}')");
+  if (verify.ok && verify.result && verify.result.activeComp) {
+    const c = verify.result.activeComp;
+    appendChat("kinea", `✓ Done. Verified — active comp “${c.name}”, ${c.numLayers} layer(s).`);
+  } else {
+    appendChat("kinea", "✓ Done — all steps executed.");
+  }
   setStatus("Plan complete.", "ok");
-  appendChat("kinea", "✓ Done — all steps executed.");
   return true;
 }
 

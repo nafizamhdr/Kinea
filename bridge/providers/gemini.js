@@ -88,10 +88,14 @@ function parseJson(s) {
     return null;
 }
 
+// Broad rate-limit / quota / transient-overload matcher (real Gemini free-tier
+// limits surface in a few different shapes across CLI versions).
+var RL_RE = /429|RESOURCE_EXHAUSTED|RATE_LIMIT|rate.?limit|too many requests|quota|exhausted|UNAVAILABLE|overloaded|\b503\b/i;
+
 function isRateLimited(text, parsed) {
     var hay = (text || "");
     try { if (parsed && parsed.error) hay += " " + JSON.stringify(parsed.error); } catch (e) {}
-    return /429|RESOURCE_EXHAUSTED|rate.?limit|quota/i.test(hay);
+    return RL_RE.test(hay);
 }
 
 // Headless run. The full prompt is fed via STDIN (so we never have to escape it
@@ -186,6 +190,7 @@ function runStream(params, onChunk) {
         var text = "";
         var errAcc = "";
         var buf = "";
+        var resultErr = null;
 
         function handleLine(line) {
             line = line.replace(/\r$/, "");
@@ -197,6 +202,9 @@ function runStream(params, onChunk) {
             } else if (obj.type === "message" && obj.role === "assistant" && typeof obj.content === "string") {
                 text += obj.content;
                 if (typeof onChunk === "function") { try { onChunk(obj.content); } catch (e2) {} }
+            } else if (obj.type === "result" && obj.status && obj.status !== "success") {
+                // Non-success result event (e.g. quota/limit) — capture for detection.
+                try { resultErr = JSON.stringify(obj); } catch (e3) { resultErr = String(obj.status); }
             }
         }
 
@@ -216,8 +224,9 @@ function runStream(params, onChunk) {
         });
         cp.on("close", function (code) {
             if (buf) handleLine(buf);
-            var rateLimited = /429|RESOURCE_EXHAUSTED|rate.?limit|quota/i.test(errAcc);
-            var error = text ? null : (errAcc || ("Gemini exited with code " + code));
+            var hay = errAcc + "\n" + (resultErr || "");
+            var rateLimited = RL_RE.test(hay);
+            var error = text ? null : (resultErr || errAcc || ("Gemini exited with code " + code));
             resolve({ text: text, sessionId: sessionId, rateLimited: rateLimited, error: error });
         });
 

@@ -80,8 +80,10 @@ function parseJson(s) {
     return null;
 }
 
+var RL_RE = /429|RATE_LIMIT|rate.?limit|too many requests|quota|exhausted|overloaded|UNAVAILABLE|\b503\b/i;
+
 function isRateLimited(text) {
-    return /429|rate.?limit|overloaded|quota/i.test(text || "");
+    return RL_RE.test(text || "");
 }
 
 // Headless run. Prompt is piped via stdin (-p is a boolean print flag), so no
@@ -128,14 +130,89 @@ function run(params) {
     });
 }
 
-// NOTE: runStream (stream-json) is a follow-up once Claude Code is installed and
-// the event shape is confirmed. Until then the bridge falls back to run(), so
-// Claude chat works (non-streamed).
+// Streaming via stream-json + --include-partial-messages: emits Anthropic
+// content_block_delta/text_delta events we forward through onChunk. The result
+// event carries the authoritative final text + session id.
+function runStream(params, onChunk) {
+    params = params || {};
+    return new Promise(function (resolve) {
+        var binPath = env.resolveBinary("claude");
+        if (!binPath) {
+            resolve({ text: "", sessionId: params.sessionId || null, error: "Claude Code CLI not found." });
+            return;
+        }
+        var prompt = params.prompt || "";
+        var model = params.model || defaultModel();
+        var cmd = '"' + binPath + '" -p --output-format stream-json --verbose --include-partial-messages --model ' + model;
+        if (params.sessionId) cmd += " --resume " + params.sessionId;
+
+        var cp = child_process.exec(cmd, {
+            cwd: tempWorkDir(),
+            timeout: params.timeout || 120000,
+            windowsHide: true,
+            maxBuffer: 16 * 1024 * 1024
+        });
+
+        var sessionId = params.sessionId || null;
+        var text = "";       // accumulated from text_delta events
+        var finalText = "";  // from the result event (authoritative)
+        var errAcc = "";
+        var rlFlag = false;
+        var buf = "";
+
+        function handleLine(line) {
+            line = line.replace(/\r$/, "");
+            if (!line) return;
+            var obj = null;
+            try { obj = JSON.parse(line); } catch (e) { return; }
+            if (obj.type === "system" && obj.subtype === "init" && obj.session_id) {
+                sessionId = obj.session_id;
+            } else if (obj.type === "stream_event" && obj.event) {
+                var ev = obj.event;
+                if (ev.type === "content_block_delta" && ev.delta &&
+                    ev.delta.type === "text_delta" && typeof ev.delta.text === "string") {
+                    text += ev.delta.text;
+                    if (typeof onChunk === "function") { try { onChunk(ev.delta.text); } catch (e2) {} }
+                }
+            } else if (obj.type === "rate_limit_event" && obj.rate_limit_info) {
+                if (obj.rate_limit_info.status && obj.rate_limit_info.status !== "allowed") rlFlag = true;
+            } else if (obj.type === "result") {
+                if (obj.session_id) sessionId = obj.session_id;
+                if (typeof obj.result === "string") finalText = obj.result;
+                if (obj.is_error) errAcc += " " + (obj.result || "error");
+            }
+        }
+
+        cp.stdout.on("data", function (d) {
+            buf += d.toString();
+            var idx;
+            while ((idx = buf.indexOf("\n")) >= 0) {
+                var line = buf.substring(0, idx);
+                buf = buf.substring(idx + 1);
+                handleLine(line);
+            }
+        });
+        cp.stderr.on("data", function (d) { errAcc += d.toString(); });
+        cp.on("error", function (e) {
+            resolve({ text: text || finalText, sessionId: sessionId, rateLimited: rlFlag, error: String(e) });
+        });
+        cp.on("close", function (code) {
+            if (buf) handleLine(buf);
+            var out = finalText || text;
+            var rateLimited = rlFlag || isRateLimited(errAcc);
+            var error = out ? null : (errAcc || ("Claude Code exited with code " + code));
+            resolve({ text: out, sessionId: sessionId, rateLimited: rateLimited, error: error });
+        });
+
+        try { cp.stdin.write(prompt); cp.stdin.end(); } catch (e) {}
+    });
+}
 
 module.exports = {
     id: "claude",
     detectInstalled: detectInstalled,
     listEntitledModels: listEntitledModels,
     defaultModel: defaultModel,
-    run: run
+    run: run,
+    runStream: runStream
 };
