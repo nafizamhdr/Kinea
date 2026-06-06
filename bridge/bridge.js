@@ -57,6 +57,13 @@ function detectProvider(id) {
 // it to the provider. Returns { ok, result:{ text, sessionId, rateLimited }, error }.
 function chat(opts) {
     opts = opts || {};
+    if (opts.simulateRateLimit) {
+        return Promise.resolve({
+            ok: false,
+            result: { rateLimited: true, sessionId: opts.sessionId || null, text: "" },
+            error: "Simulated free-tier rate limit."
+        });
+    }
     var id = opts.providerId || "gemini";
     var p = providers[id];
     if (!p) return Promise.resolve({ ok: false, error: "Unknown provider: " + id });
@@ -93,6 +100,13 @@ function parsePlanText(text) {
 // The plan is already VALIDATED against the tool registry here.
 function plan(opts) {
     opts = opts || {};
+    if (opts.simulateRateLimit) {
+        return Promise.resolve({
+            ok: false,
+            result: { rateLimited: true, sessionId: opts.sessionId || null, text: "" },
+            error: "Simulated free-tier rate limit."
+        });
+    }
     var id = opts.providerId || "gemini";
     var p = providers[id];
     if (!p) return Promise.resolve({ ok: false, error: "Unknown provider: " + id });

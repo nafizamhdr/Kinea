@@ -271,6 +271,42 @@ correctly, including the effect matchName `ADBE Gaussian Blur 2`).
 - Especially confirm `setEasing` on **Position** (spatial) works — it retries the
   ease arrays at dimension 1 if the per-dimension call is rejected.
 
-> Next: Sprint 4c — destructive-op confirmation (none of the 9 tools delete yet,
-> so this is the safety scaffold) + simulated 429 backoff/resume. Then Sprint 5
-> polish (streaming for latency, onboarding, signed .zxp).
+> Sprint 4b-2 verified — all 9 tools work.
+
+---
+
+## Sprint 4c — resilience (destructive confirm + 429 recovery)
+
+Completes the Agent loop per milestone 4. Both paths are testable via Dev-tools
+simulation toggles (no real quota / no destructive tool needed yet).
+
+### Reload
+- Close & reopen the panel (restart AE if host looks stale).
+
+### Verify — rate-limit recovery (no quota used)
+1. Open **Dev tools**, tick **"Simulate rate limit (next send)"**.
+2. In **Agent** (or Chat), send any request. Instead of a plan/answer you get a
+   red bubble: *"Free-tier limit reached (session saved). Auto-retry in 5s…"*
+   with a **Retry now** button.
+3. Let it auto-retry (or click Retry now). Since the simulate flag is one-shot,
+   the retry runs for real → you get the actual plan/answer. (The backoff grows
+   5→10→20→40→60s across consecutive limits, and resets on success.)
+4. Sanity: the session continues (it reused the saved sessionId).
+
+### Verify — destructive-step confirmation
+5. Tick **"Simulate destructive plan"**, then send an Agent request (e.g.
+   *"create a 1080p comp and add a solid"*).
+6. The plan card marks steps with ⚠️ and shows a red confirm box:
+   *"This plan has N destructive step(s). Tick to confirm…"* — **Approve & run is
+   disabled** until you tick it.
+7. Tick the box → Approve enables → run proceeds normally. (Real destructive
+   tools like delete aren't in the MVP 9; this is the safety gate they'll use.)
+
+### Report back
+- Rate-limit bubble + auto-retry + manual Retry all work; destructive gate blocks
+  Approve until confirmed. Then Chat/Agent still behave normally with the toggles
+  off.
+
+> Milestone 4 (Agent loop) complete after this. Next: Sprint 5 polish — streaming
+> to mask latency, onboarding (PATH/Node/CLI detection), signed `.zxp`, and the
+> Claude Code adapter behind the same interface.

@@ -214,6 +214,26 @@ html, body {
 }
 .devtools summary { cursor: pointer; padding: 4px 0; }
 .devtools .panel__actions { margin-top: 6px; }
+.devtools__sims {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.devtools__sims label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+
+.plan-card__warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--err);
+  background: #3a2525;
+  border: 1px solid var(--err);
+  border-radius: 6px;
+  padding: 6px 8px;
+  line-height: 1.4;
+}
+.plan-card__warn input { margin-top: 2px; }
 
 .panel__foot { flex: 0 0 auto; }
 

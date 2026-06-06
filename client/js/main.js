@@ -16,11 +16,14 @@ const chatInput = document.getElementById("chat-input");
 const btnSend = document.getElementById("btn-send");
 const modeChat = document.getElementById("mode-chat");
 const modeAgent = document.getElementById("mode-agent");
+const simRateLimit = document.getElementById("sim-ratelimit");
+const simDestructive = document.getElementById("sim-destructive");
 
 // Chat session state (persisted in-memory for --resume continuity).
 let chatSessionId = null;
 let chatModel = null; // null -> adapter default (a Flash model)
 let mode = "chat";    // "chat" | "agent"
+let rlAttempt = 0;    // rate-limit backoff counter (resets on success)
 
 // --- Node bridge ---------------------------------------------------------
 // With --mixed-context, the panel shares the Node context, so we can require
@@ -178,8 +181,41 @@ function appendChat(role, text) {
   return div;
 }
 
-async function sendChat() {
-  const question = chatInput.value.trim();
+// Recoverable rate-limit UI: exponential backoff with auto-retry + a manual
+// "Retry now" button. sessionId is already persisted so the work resumes.
+function renderRateLimit(retryFn) {
+  rlAttempt++;
+  const delay = Math.min(60, 5 * Math.pow(2, rlAttempt - 1)); // 5,10,20,40,60s
+
+  const card = document.createElement("div");
+  card.className = "chat-msg chat-msg--err";
+  const text = document.createElement("div");
+  const btn = document.createElement("button");
+  btn.className = "btn btn--ghost";
+  btn.textContent = "Retry now";
+  btn.style.marginTop = "6px";
+  card.appendChild(text);
+  card.appendChild(btn);
+  chatLog.appendChild(card);
+  chatLog.scrollTop = chatLog.scrollHeight;
+
+  let remaining = delay;
+  let timer = null;
+  const cleanup = () => { if (timer) clearTimeout(timer); card.remove(); };
+  const fire = () => { cleanup(); retryFn(); };
+  const tick = () => {
+    text.textContent = `Free-tier limit reached (session saved). Auto-retry in ${remaining}s…`;
+    if (remaining <= 0) { fire(); return; }
+    remaining--;
+    timer = setTimeout(tick, 1000);
+  };
+  btn.addEventListener("click", fire);
+  setStatus("Free-tier limit reached — will resume.", "err");
+  tick();
+}
+
+async function sendChat(retryQuestion) {
+  const question = retryQuestion || chatInput.value.trim();
   if (!question) return;
 
   const b = loadBridge();
@@ -188,7 +224,7 @@ async function sendChat() {
     return;
   }
 
-  appendChat("you", question);
+  if (!retryQuestion) appendChat("you", question);
   chatInput.value = "";
   btnSend.disabled = true;
   chatInput.disabled = true;
@@ -196,29 +232,34 @@ async function sendChat() {
   pending.classList.add("chat-msg--pending");
   setStatus("Asking Gemini…");
 
+  const simRL = simRateLimit && simRateLimit.checked;
+  if (simRateLimit) simRateLimit.checked = false; // one-shot
+
   try {
     // 1) Refresh AE context (read-only) so the answer is project-aware.
     const ctxRes = await callHost("kinea_refreshContext('{\"includeTree\":false}')");
     const context = ctxRes && ctxRes.ok ? ctxRes.result : null;
 
     // 2) Ask the provider via the bridge.
-    const res = await b.chat({ question, context, model: chatModel, sessionId: chatSessionId });
+    const res = await b.chat({ question, context, model: chatModel, sessionId: chatSessionId, simulateRateLimit: simRL });
 
     pending.remove();
+    if (res.result && res.result.sessionId) chatSessionId = res.result.sessionId;
+
     if (!res.ok) {
-      const rl = res.result && res.result.rateLimited;
-      const msg = rl
-        ? "Free-tier limit reached. Wait a bit and try again."
-        : (res.error || "Chat failed.");
-      appendChat("err", msg);
-      setStatus(msg, "err");
+      if (res.result && res.result.rateLimited) {
+        renderRateLimit(() => sendChat(question));
+      } else {
+        appendChat("err", res.error || "Chat failed.");
+        setStatus(res.error || "Chat failed.", "err");
+      }
       return;
     }
 
+    rlAttempt = 0; // success resets backoff
     const r = res.result;
-    if (r.sessionId) chatSessionId = r.sessionId;
     appendChat("kinea", r.text || "(empty response)");
-    setStatus(r.rateLimited ? "Answered — near the free-tier limit." : "Ready.", r.rateLimited ? "" : "ok");
+    setStatus("Ready.", "ok");
   } catch (e) {
     pending.remove();
     appendChat("err", String(e));
@@ -232,8 +273,8 @@ async function sendChat() {
 
 // --- Agent Mode: plan -> approve -> execute ------------------------------
 
-async function sendPlan() {
-  const question = chatInput.value.trim();
+async function sendPlan(retryQuestion) {
+  const question = retryQuestion || chatInput.value.trim();
   if (!question) return;
 
   const b = loadBridge();
@@ -242,7 +283,7 @@ async function sendPlan() {
     return;
   }
 
-  appendChat("you", question);
+  if (!retryQuestion) appendChat("you", question);
   chatInput.value = "";
   btnSend.disabled = true;
   chatInput.disabled = true;
@@ -250,25 +291,38 @@ async function sendPlan() {
   pending.classList.add("chat-msg--pending");
   setStatus("Planning…");
 
+  const simRL = simRateLimit && simRateLimit.checked;
+  if (simRateLimit) simRateLimit.checked = false; // one-shot
+
   try {
     const ctxRes = await callHost("kinea_refreshContext('{\"includeTree\":false}')");
     const context = ctxRes && ctxRes.ok ? ctxRes.result : null;
 
-    const res = await b.plan({ question, context, model: chatModel, sessionId: chatSessionId });
+    const res = await b.plan({ question, context, model: chatModel, sessionId: chatSessionId, simulateRateLimit: simRL });
     pending.remove();
+    if (res.result && res.result.sessionId) chatSessionId = res.result.sessionId;
 
     if (!res.ok) {
-      const rl = res.result && res.result.rateLimited;
-      const msg = rl
-        ? "Free-tier limit reached. Wait a bit and try again."
-        : (res.error || "Planning failed.");
-      appendChat("err", msg);
-      setStatus(msg, "err");
+      if (res.result && res.result.rateLimited) {
+        renderRateLimit(() => sendPlan(question));
+      } else {
+        appendChat("err", res.error || "Planning failed.");
+        setStatus(res.error || "Planning failed.", "err");
+      }
       return;
     }
 
-    if (res.result.sessionId) chatSessionId = res.result.sessionId;
-    renderPlan(res.result.plan);
+    rlAttempt = 0; // success resets backoff
+    const plan = res.result.plan;
+
+    // Dev: simulate a destructive plan to exercise the extra-confirm gate.
+    if (simDestructive && simDestructive.checked) {
+      plan.destructiveSteps = plan.steps.map((_, i) => i + 1);
+      plan.steps.forEach((s) => { s.destructive = true; });
+      simDestructive.checked = false;
+    }
+
+    renderPlan(plan);
     setStatus("Plan ready — review and approve.", "");
   } catch (e) {
     pending.remove();
@@ -353,6 +407,23 @@ function renderPlan(plan) {
   cancel.textContent = "Cancel";
   actions.appendChild(approve);
   actions.appendChild(cancel);
+
+  // Destructive steps need an extra explicit confirm even inside an approved
+  // plan (Golden rule / safety.js). Approve stays disabled until acknowledged.
+  const hasDestructive = plan.destructiveSteps && plan.destructiveSteps.length;
+  if (hasDestructive) {
+    approve.disabled = true;
+    const warn = document.createElement("label");
+    warn.className = "plan-card__warn";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    warn.appendChild(cb);
+    warn.appendChild(document.createTextNode(
+      ` This plan has ${plan.destructiveSteps.length} destructive step(s). Tick to confirm you want to run them.`));
+    card.appendChild(warn);
+    cb.addEventListener("change", () => { approve.disabled = !cb.checked; });
+  }
+
   card.appendChild(actions);
 
   chatLog.appendChild(card);
