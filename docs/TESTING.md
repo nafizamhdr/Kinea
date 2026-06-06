@@ -307,6 +307,40 @@ simulation toggles (no real quota / no destructive tool needed yet).
   Approve until confirmed. Then Chat/Agent still behave normally with the toggles
   off.
 
-> Milestone 4 (Agent loop) complete after this. Next: Sprint 5 polish — streaming
-> to mask latency, onboarding (PATH/Node/CLI detection), signed `.zxp`, and the
-> Claude Code adapter behind the same interface.
+> Milestone 4 (Agent loop) verified.
+
+---
+
+## Sprint 5a — Streaming Chat (latency UX)
+
+Chat answers now **stream in live** instead of freezing for ~1 min. Gemini runs
+with `-o stream-json` (NDJSON deltas); the bridge calls back per chunk and the
+panel fills the bubble as text arrives.
+
+Important fix found here: stream mode leaked gemini-cli internals
+(`update_topic{…}`, `<ctrlNN>` tokens). Adding **`-e none`** (disable
+extensions/skills) cleans the stream — and is now used for `run`/`runStream`
+both, which also trims overhead a bit. Verified outside AE: clean streamed text +
+valid planning.
+
+### Reload
+- Close & reopen the panel (restart AE if host looks stale).
+
+### Verify
+1. **Chat** tab → ask anything substantial (e.g. *"Explain the difference
+   between Ease In and Easy Ease, with an example."*). The answer should appear
+   **progressively**, word/line by line — not all-at-once after a long wait.
+2. Ask a follow-up → still streams, stays on topic (session continuity intact).
+3. Confirm **no artifacts** like `update_topic` or `<ctrl…>` appear in answers.
+4. **Agent** planning is unchanged (still shows "Planning…" then the plan) —
+   planning output is JSON so it's not streamed; only Chat streams.
+5. Rate-limit recovery still works with streaming (Dev tools → Simulate rate
+   limit → the recoverable bubble appears instead of a stream).
+
+### Report back
+- Does Chat feel responsive now? Any leftover artifact text? Roughly how long
+  until the first words appear vs the full answer.
+
+> Next in Sprint 5: 5b onboarding (startup Node/Gemini detection + guidance) and
+> graceful errors; 5c packaging (signed `.zxp`) + Claude Code adapter — those two
+> need your input (signing cert; whether you have Claude Code installed).

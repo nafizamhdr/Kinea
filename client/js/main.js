@@ -235,18 +235,30 @@ async function sendChat(retryQuestion) {
   const simRL = simRateLimit && simRateLimit.checked;
   if (simRateLimit) simRateLimit.checked = false; // one-shot
 
+  // Live streaming: replace the "Thinking…" bubble with text as it arrives.
+  let streamed = "";
+  const onChunk = (delta) => {
+    if (!streamed) { pending.classList.remove("chat-msg--pending"); pending.textContent = ""; }
+    streamed += delta;
+    pending.textContent = streamed;
+    chatLog.scrollTop = chatLog.scrollHeight;
+  };
+
   try {
     // 1) Refresh AE context (read-only) so the answer is project-aware.
     const ctxRes = await callHost("kinea_refreshContext('{\"includeTree\":false}')");
     const context = ctxRes && ctxRes.ok ? ctxRes.result : null;
 
-    // 2) Ask the provider via the bridge.
-    const res = await b.chat({ question, context, model: chatModel, sessionId: chatSessionId, simulateRateLimit: simRL });
+    // 2) Ask the provider via the bridge (streamed).
+    const res = await b.chat(
+      { question, context, model: chatModel, sessionId: chatSessionId, simulateRateLimit: simRL },
+      onChunk
+    );
 
-    pending.remove();
     if (res.result && res.result.sessionId) chatSessionId = res.result.sessionId;
 
     if (!res.ok) {
+      pending.remove();
       if (res.result && res.result.rateLimited) {
         renderRateLimit(() => sendChat(question));
       } else {
@@ -257,8 +269,9 @@ async function sendChat(retryQuestion) {
     }
 
     rlAttempt = 0; // success resets backoff
-    const r = res.result;
-    appendChat("kinea", r.text || "(empty response)");
+    // Settle the bubble on the authoritative final text (covers non-stream fallback).
+    pending.classList.remove("chat-msg--pending");
+    pending.textContent = res.result.text || streamed || "(empty response)";
     setStatus("Ready.", "ok");
   } catch (e) {
     pending.remove();

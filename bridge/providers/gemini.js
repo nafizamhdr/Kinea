@@ -109,11 +109,11 @@ function run(params) {
         var model = params.model || defaultModel(true);
         var prompt = params.prompt || "";
 
-        // --approval-mode plan keeps Gemini read-only (no file tools) and, in
-        // practice, stops agentic tool-call fragments from leaking into the
-        // response. Fits Chat Mode (Golden rule 1); for Agent Mode we still only
-        // want text/script back and execute it ourselves via evalScript.
-        var cmd = '"' + binPath + '" -o json --skip-trust --approval-mode plan -m ' + model;
+        // --approval-mode plan keeps Gemini read-only (no file tools); -e none
+        // disables extensions/skills (the source of leaked "update_topic"/<ctrlNN>
+        // artifacts, and extra overhead). Fits Chat/Agent: we only want text/JSON
+        // back and execute it ourselves via evalScript.
+        var cmd = '"' + binPath + '" -o json --skip-trust --approval-mode plan -e none -m ' + model;
         if (params.sessionId) cmd += " --resume " + params.sessionId;
         cmd += ' -p " "';
 
@@ -155,10 +155,81 @@ function run(params) {
     });
 }
 
+// Streaming variant: same invocation but -o stream-json (NDJSON). Calls
+// onChunk(deltaText) as assistant deltas arrive, and resolves with the final
+// { text, sessionId, rateLimited, error } once the process closes.
+function runStream(params, onChunk) {
+    params = params || {};
+    return new Promise(function (resolve) {
+        var binPath = env.resolveBinary("gemini");
+        if (!binPath) {
+            resolve({ text: "", sessionId: params.sessionId || null, error: "Gemini CLI not found." });
+            return;
+        }
+        var model = params.model || defaultModel(true);
+        var prompt = params.prompt || "";
+
+        // -e none: disable extensions/skills so raw stream deltas stay clean
+        // (no leaked "update_topic"/<ctrlNN> tokens).
+        var cmd = '"' + binPath + '" -o stream-json --skip-trust --approval-mode plan -e none -m ' + model;
+        if (params.sessionId) cmd += " --resume " + params.sessionId;
+        cmd += ' -p " "';
+
+        var cp = child_process.exec(cmd, {
+            cwd: tempWorkDir(),
+            timeout: params.timeout || 120000,
+            windowsHide: true,
+            maxBuffer: 16 * 1024 * 1024
+        });
+
+        var sessionId = params.sessionId || null;
+        var text = "";
+        var errAcc = "";
+        var buf = "";
+
+        function handleLine(line) {
+            line = line.replace(/\r$/, "");
+            if (!line) return;
+            var obj = null;
+            try { obj = JSON.parse(line); } catch (e) { return; }
+            if (obj.type === "init" && obj.session_id) {
+                sessionId = obj.session_id;
+            } else if (obj.type === "message" && obj.role === "assistant" && typeof obj.content === "string") {
+                text += obj.content;
+                if (typeof onChunk === "function") { try { onChunk(obj.content); } catch (e2) {} }
+            }
+        }
+
+        cp.stdout.on("data", function (d) {
+            buf += d.toString();
+            var idx;
+            while ((idx = buf.indexOf("\n")) >= 0) {
+                var line = buf.substring(0, idx);
+                buf = buf.substring(idx + 1);
+                handleLine(line);
+            }
+        });
+        cp.stderr.on("data", function (d) { errAcc += d.toString(); });
+
+        cp.on("error", function (e) {
+            resolve({ text: text, sessionId: sessionId, rateLimited: false, error: String(e) });
+        });
+        cp.on("close", function (code) {
+            if (buf) handleLine(buf);
+            var rateLimited = /429|RESOURCE_EXHAUSTED|rate.?limit|quota/i.test(errAcc);
+            var error = text ? null : (errAcc || ("Gemini exited with code " + code));
+            resolve({ text: text, sessionId: sessionId, rateLimited: rateLimited, error: error });
+        });
+
+        try { cp.stdin.write(prompt); cp.stdin.end(); } catch (e) {}
+    });
+}
+
 module.exports = {
     id: "gemini",
     detectInstalled: detectInstalled,
     listEntitledModels: listEntitledModels,
     defaultModel: defaultModel,
-    run: run
+    run: run,
+    runStream: runStream
 };

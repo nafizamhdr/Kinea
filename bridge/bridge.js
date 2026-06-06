@@ -55,7 +55,7 @@ function detectProvider(id) {
 // Chat Mode (read-only). The panel supplies the already-serialized AE context
 // (it owns the evalScript boundary); the bridge composes the prompt and routes
 // it to the provider. Returns { ok, result:{ text, sessionId, rateLimited }, error }.
-function chat(opts) {
+function chat(opts, onChunk) {
     opts = opts || {};
     if (opts.simulateRateLimit) {
         return Promise.resolve({
@@ -67,11 +67,17 @@ function chat(opts) {
     var id = opts.providerId || "gemini";
     var p = providers[id];
     if (!p) return Promise.resolve({ ok: false, error: "Unknown provider: " + id });
-    if (typeof p.run !== "function") {
+    if (typeof p.run !== "function" && typeof p.runStream !== "function") {
         return Promise.resolve({ ok: false, error: "Provider '" + id + "' has no run() yet." });
     }
     var prompt = prompts.buildChatPrompt(opts.question || "", opts.context || null);
-    return p.run({ prompt: prompt, model: opts.model, sessionId: opts.sessionId }).then(
+    var args = { prompt: prompt, model: opts.model, sessionId: opts.sessionId };
+
+    var exec = (typeof onChunk === "function" && typeof p.runStream === "function")
+        ? p.runStream(args, onChunk)
+        : p.run(args);
+
+    return exec.then(
         function (r) {
             return { ok: !r.error, result: r, error: r.error || null };
         },
