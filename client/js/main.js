@@ -10,6 +10,7 @@ const btnPing = document.getElementById("btn-ping");
 const btnContext = document.getElementById("btn-context");
 const btnDetect = document.getElementById("btn-detect");
 const btnSolid = document.getElementById("btn-solid");
+const btnTestRename = document.getElementById("btn-test-rename");
 const chatLog = document.getElementById("chat-log");
 const chatInput = document.getElementById("chat-input");
 const btnSend = document.getElementById("btn-send");
@@ -108,6 +109,20 @@ btnContext.addEventListener("click", () => {
     },
     "" // neutral tone for a data dump
   );
+});
+
+// Diagnostic: call the rename host fn DIRECTLY (bypassing the model) on the
+// selected layer, and show the RAW host string so we can see exactly what it
+// returns. Helps tell "host worked / display issue" from "host failed".
+btnTestRename.addEventListener("click", () => {
+  btnTestRename.disabled = true;
+  setStatus("Testing rename on selected layer…");
+  const payload = JSON.stringify({ items: [{ newName: "KineaTest", label: 9 }] });
+  const script = `kinea_renameAndOrganize(${JSON.stringify(payload)})`;
+  cs.evalScript(script, (raw) => {
+    setStatus("Raw host return:\n" + raw, "");
+    btnTestRename.disabled = false;
+  });
 });
 
 btnDetect.addEventListener("click", async () => {
