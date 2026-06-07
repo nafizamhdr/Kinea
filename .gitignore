@@ -8,3 +8,9 @@ certificate.p12
 
 # Office temp/lock files
 ~$*
+
+# Local Claude Code settings
+.claude/
+
+# Local manual-test artifacts (screenshots, review docs)
+update progress/
