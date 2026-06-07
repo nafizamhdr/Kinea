@@ -14,3 +14,8 @@ certificate.p12
 
 # Local manual-test artifacts (screenshots, review docs)
 update progress/
+
+# Internal docs — kept local, excluded from the public repo
+CLAUDE.md
+PROJECT_BRIEF.md
+docs/

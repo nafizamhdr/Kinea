@@ -60,7 +60,7 @@ This sets `PlayerDebugMode=1` (CSXS 9–12) and symlinks the repo into
 Effects** and open `Window > Extensions > Kinea`.
 
 > Editing host `.jsx` files requires reopening the panel / restarting AE — host
-> code is loaded once at panel load (see CLAUDE.md "Critical gotchas").
+> code is loaded once at panel load.
 
 A signed `.zxp` for end-user install is planned (not yet built).
 
@@ -118,9 +118,6 @@ kinea/
   bridge/        bridge.js, providers/, tools.js, safety.js, prompts.js, env.js
   host/          index.jsx, context.jsx, lib/json2.js (vendored), tools/
   scripts/       dev-install.ps1
-  docs/          TESTING.md
-  CLAUDE.md      build guide & guardrails (source of truth)
-  PROJECT_BRIEF.md
 ```
 
 ## Out of scope (for now)
@@ -128,12 +125,6 @@ kinea/
 Premiere support, local Ollama, direct API-key mode, voice input, image/PDF
 references, vector shape layers, a preset/template library, and a structured
 MCP tool layer (v2 reliability upgrade).
-
-## Documentation
-
-- **[CLAUDE.md](CLAUDE.md)** — operating guide, contracts, and non-negotiable guardrails.
-- **[PROJECT_BRIEF.md](PROJECT_BRIEF.md)** — vision, scope, roadmap.
-- **[docs/TESTING.md](docs/TESTING.md)** — per-sprint manual test steps.
 
 ## Credits
 
