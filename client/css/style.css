@@ -3,13 +3,20 @@
 :root {
   --bg: #1e1e1e;
   --bg-elev: #252526;
+  --bg-hover: #2d2d2e;
   --border: #3a3a3a;
+  --border-strong: #4d4d4d;
   --text: #e6e6e6;
   --text-dim: #9a9a9a;
   --accent: #5b8cff;
   --accent-press: #3f6fe0;
+  --run: #3fa46a;
+  --run-press: #348a59;
   --ok: #4caf7d;
   --err: #e0625a;
+  --focus: #7aa2ff;
+  --radius: 8px;
+  --radius-sm: 5px;
   --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
 }
 
@@ -33,16 +40,25 @@ html, body {
 }
 
 .panel__head {
+  flex: 0 0 auto;
   display: flex;
-  align-items: baseline;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.panel__titlebar {
+  display: flex;
+  align-items: center;
   gap: 8px;
 }
 
 .panel__title {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.3px;
 }
 
 .panel__tag {
@@ -55,7 +71,7 @@ html, body {
   margin-left: auto;
   display: inline-flex;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 .mode__btn {
@@ -64,10 +80,51 @@ html, body {
   background: var(--bg-elev);
   color: var(--text-dim);
   font-size: 12px;
-  padding: 5px 12px;
+  padding: 5px 14px;
   cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
 }
+.mode__btn:hover { background: var(--bg-hover); color: var(--text); }
 .mode__btn--active { background: var(--accent); color: #fff; font-weight: 600; }
+.mode__btn--active:hover { background: var(--accent); color: #fff; }
+
+/* --- Toolbar: provider + model pickers (first-class) --- */
+.toolbar {
+  display: flex;
+  gap: 8px;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1 1 0;
+  min-width: 0;
+}
+.field__label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-dim);
+}
+.select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  padding: 6px 26px 6px 9px;
+  font-size: 12px;
+  color: var(--text);
+  background-color: var(--bg-elev);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%239a9a9a' stroke-width='1.5'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-overflow: ellipsis;
+  transition: border-color 0.15s ease;
+}
+.select:hover { border-color: var(--border-strong); }
+.select:focus { outline: none; border-color: var(--accent); }
 
 /* --- Plan card (Agent Mode) --- */
 .plan-card {
@@ -144,6 +201,29 @@ html, body {
   font-weight: 600;
 }
 .btn--primary:hover { background: var(--accent-press); border-color: var(--accent-press); }
+
+/* Green "run" affordance for actions that execute/mutate the project. */
+.btn--run {
+  background: var(--run);
+  border-color: var(--run);
+  color: #fff;
+  font-weight: 600;
+}
+.btn--run:hover { background: var(--run-press); border-color: var(--run-press); }
+
+/* Accessibility: visible keyboard focus on all interactive controls. */
+.btn:focus-visible,
+.mode__btn:focus-visible,
+.select:focus-visible,
+.chat-input__field:focus-visible,
+.devtools summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
 
 /* --- Chat --- */
 .chat-log {

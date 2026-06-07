@@ -439,5 +439,37 @@ Clicking **Detect Gemini** (Dev tools) re-checks and re-enables Send.
 - Per-step "→" details + final "Verified" line look right; Claude streams; sim
   rate-limit still recovers.
 
-> Remaining MVP polish: #2 model-picker UI (entitled models) and #1 signed `.zxp`
-> (deferred by choice). Out-of-scope items (shape layers, etc.) tracked separately.
+> Sprint 5d verified.
+
+---
+
+## Sprint 5e — UI tidy-up + model picker (#2)
+
+UI refinements (still vanilla CSS/JS, AE-native dark theme, no framework):
+- Header is now two rows: **title + Chat/Agent toggle**, then a **toolbar** with
+  first-class **Provider** and **Model** pickers (provider moved out of Dev tools).
+- **#2 Model picker:** shows only the active provider's entitled models
+  (gemini → 2.5-flash / 2.0-flash; claude → sonnet / opus / haiku). Switching
+  provider repopulates it; picking a model sets it for the next send.
+- Polished: styled dark `<select>`s with a custom chevron, header divider,
+  hover/focus states (keyboard focus rings), `prefers-reduced-motion` support.
+- **Approve & run** is now green (run/execute affordance); Send stays blue.
+
+### Reload
+- Close & reopen the panel.
+
+### Verify
+1. Header shows **Provider** and **Model** dropdowns. With Gemini ready, Model
+   lists `gemini-2.5-flash` / `gemini-2.0-flash`.
+2. Switch Provider → `claude` → Model repopulates to `sonnet/opus/haiku`; intro
+   updates; Send stays enabled. Pick `haiku` → next Claude send uses it.
+3. Tab through controls with the keyboard → visible focus rings; selects open and
+   read clearly on the dark theme.
+4. Agent: the plan card's **Approve & run** button is green; flow still works.
+
+### Report back
+- Do the Provider/Model pickers look clean and work? Any layout issues at your
+  panel width? Then #2 is done.
+
+> Remaining: #1 signed `.zxp` (deferred by choice). Out-of-scope (shape layers,
+> text color/font, etc.) — you're drafting that plan separately.

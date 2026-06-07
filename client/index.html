@@ -12,10 +12,22 @@
 <body>
   <main class="panel">
     <header class="panel__head">
-      <h1 class="panel__title">Kinea</h1>
-      <div class="mode" role="tablist" aria-label="Mode">
-        <button id="mode-chat" class="mode__btn mode__btn--active" type="button" role="tab">Chat</button>
-        <button id="mode-agent" class="mode__btn" type="button" role="tab">Agent</button>
+      <div class="panel__titlebar">
+        <h1 class="panel__title">Kinea</h1>
+        <div class="mode" role="tablist" aria-label="Mode">
+          <button id="mode-chat" class="mode__btn mode__btn--active" type="button" role="tab" aria-selected="true">Chat</button>
+          <button id="mode-agent" class="mode__btn" type="button" role="tab" aria-selected="false">Agent</button>
+        </div>
+      </div>
+      <div class="toolbar">
+        <label class="field">
+          <span class="field__label">Provider</span>
+          <select id="provider-select" class="select" aria-label="Provider"></select>
+        </label>
+        <label class="field">
+          <span class="field__label">Model</span>
+          <select id="model-select" class="select" aria-label="Model"></select>
+        </label>
       </div>
     </header>
 
@@ -41,7 +53,6 @@
           <button id="btn-test-rename" class="btn btn--ghost" type="button">Test rename (sel→KineaTest)</button>
         </div>
         <div class="devtools__sims">
-          <label>Provider: <select id="provider-select"></select></label>
           <label><input type="checkbox" id="sim-ratelimit" /> Simulate rate limit (next send)</label>
           <label><input type="checkbox" id="sim-destructive" /> Simulate destructive plan</label>
         </div>

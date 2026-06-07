@@ -19,6 +19,7 @@ const modeAgent = document.getElementById("mode-agent");
 const simRateLimit = document.getElementById("sim-ratelimit");
 const simDestructive = document.getElementById("sim-destructive");
 const providerSelect = document.getElementById("provider-select");
+const modelSelect = document.getElementById("model-select");
 
 // Chat session state (persisted in-memory for --resume continuity).
 let chatSessionId = null;
@@ -163,8 +164,8 @@ btnDetect.addEventListener("click", async () => {
     ];
     if (r.error) lines.push(`note: ${r.error}`);
     setStatus(lines.join("\n"), r.error ? "" : "ok");
-    // Re-enable sending if a previous onboarding check had blocked it.
-    chatModel = r.defaultModel || chatModel;
+    // Re-enable sending + refresh the model picker.
+    populateModels(r.models, r.defaultModel);
     setReady(true);
   } finally {
     btnDetect.disabled = false;
@@ -454,7 +455,7 @@ function renderPlan(plan) {
   const actions = document.createElement("div");
   actions.className = "plan-card__actions";
   const approve = document.createElement("button");
-  approve.className = "btn btn--primary";
+  approve.className = "btn btn--run";
   approve.textContent = `Approve & run (${plan.steps.length})`;
   const cancel = document.createElement("button");
   cancel.className = "btn btn--ghost";
@@ -510,6 +511,8 @@ function setMode(next) {
   const agent = next === "agent";
   modeAgent.classList.toggle("mode__btn--active", agent);
   modeChat.classList.toggle("mode__btn--active", !agent);
+  modeAgent.setAttribute("aria-selected", String(agent));
+  modeChat.setAttribute("aria-selected", String(!agent));
   chatInput.placeholder = agent
     ? "Describe what to build… (Agent plans, you approve)"
     : "Ask Kinea… (Enter to send, Shift+Enter for newline)";
@@ -558,6 +561,26 @@ function populateProviders(b) {
   providerSelect.value = activeProvider;
 }
 
+// Fill the model picker with the provider's entitled models (CLAUDE.md free-tier
+// rule: only offer models the account can reach). Sets chatModel accordingly.
+function populateModels(models, def) {
+  const list = (models && models.length) ? models.slice() : (def ? [def] : []);
+  if (modelSelect) {
+    modelSelect.innerHTML = "";
+    list.forEach((m) => {
+      const o = document.createElement("option");
+      o.value = m;
+      o.textContent = m;
+      modelSelect.appendChild(o);
+    });
+    if (def && list.indexOf(def) >= 0) modelSelect.value = def;
+    modelSelect.disabled = list.length === 0;
+    chatModel = modelSelect.value || def || null;
+  } else {
+    chatModel = def || null;
+  }
+}
+
 async function init() {
   setStatus("Checking setup…");
   setReady(false);
@@ -578,7 +601,7 @@ async function init() {
   try {
     const res = await b.detectProvider(activeProvider);
     if (res.ok && res.result.found) {
-      chatModel = res.result.defaultModel || null;
+      populateModels(res.result.models, res.result.defaultModel);
       setIntro(
         `Ready — ${activeProvider} ${res.result.version} detected (model: ${res.result.defaultModel}).\n` +
         "Chat is read-only Q&A about your comp. Switch to Agent to plan & build."
@@ -606,6 +629,9 @@ if (providerSelect) {
     chatSessionId = null; // new provider -> fresh session
     init();
   });
+}
+if (modelSelect) {
+  modelSelect.addEventListener("change", () => { chatModel = modelSelect.value; });
 }
 
 init();
