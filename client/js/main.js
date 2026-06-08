@@ -323,15 +323,18 @@ async function sendPlan(retryQuestion) {
     const ctxRes = await callHost("kinea_refreshContext('{\"includeTree\":false}')");
     const context = ctxRes && ctxRes.ok ? ctxRes.result : null;
 
-    const res = await b.plan({ question, context, model: chatModel, sessionId: chatSessionId, providerId: activeProvider, simulateRateLimit: simRL });
+    // Planning is STATELESS: do not resume a prior session. Resuming made the
+    // model think the task was already done and return an empty plan ("Plan has
+    // no steps") on the 2nd+ request. The prompt already carries full context.
+    const res = await b.plan({ question, context, model: chatModel, providerId: activeProvider, simulateRateLimit: simRL });
     pending.remove();
-    if (res.result && res.result.sessionId) chatSessionId = res.result.sessionId;
 
     if (!res.ok) {
       if (res.result && res.result.rateLimited) {
         renderRateLimit(() => sendPlan(question));
       } else {
-        appendChat("err", res.error || "Planning failed.");
+        const raw = res.result && res.result.raw ? `\n\nModel said:\n${String(res.result.raw).slice(0, 300)}` : "";
+        appendChat("err", (res.error || "Planning failed.") + raw);
         setStatus(res.error || "Planning failed.", "err");
       }
       return;
