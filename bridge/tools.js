@@ -94,6 +94,48 @@ var TOOLS = {
         describe: "Scan for expression errors and report them (read-only; does not " +
                   "change anything). Use this to locate broken expressions, then " +
                   "propose a fix via setExpression. params: maxLayers, maxFindings (optional)."
+    },
+
+    // --- Phase 1a: generic primitives + introspection ---
+    setProperty: {
+        hostFn: "kinea_setProperty",
+        implemented: true,
+        destructive: false,
+        required: ["path", "value"],
+        describe: "Set a static value on ANY property by its matchName path. params: " +
+                  "layer (name/index/'selected', optional), path (array of matchNames " +
+                  "from the layer root, e.g. ['ADBE Transform Group','ADBE Position']), " +
+                  "value (number, or array for multi-dim like [x,y] position or [r,g,b] " +
+                  "color 0..1), force (bool, optional — override an existing expression)."
+    },
+    setKeyframes: {
+        hostFn: "kinea_setKeyframes",
+        implemented: true,
+        destructive: false,
+        required: ["path", "keys"],
+        describe: "Keyframe ANY property by matchName path with interpolation/easing. " +
+                  "params: layer (optional), path (array of matchNames), keys (array of " +
+                  "{ time: seconds, value, interpIn?/interpOut? ('hold'|'linear'|'bezier'), " +
+                  "easeIn?/easeOut? ({ influence: 0.1..100, speed }) }). Generalizes " +
+                  "setTransformKeyframes to any property."
+    },
+    describeProperty: {
+        hostFn: "kinea_describeProperty",
+        implemented: true,
+        destructive: false,
+        readOnly: true,
+        required: [],
+        describe: "Read-only: introspect a property subtree (matchNames/types/values) " +
+                  "for inspect-then-set. params: layer, path (optional), depth (optional)."
+    },
+    describeLayer: {
+        hostFn: "kinea_describeLayer",
+        implemented: true,
+        destructive: false,
+        readOnly: true,
+        required: [],
+        describe: "Read-only: summarize a layer and its top-level property groups " +
+                  "(to discover available matchName paths). params: layer (optional)."
     }
 };
 

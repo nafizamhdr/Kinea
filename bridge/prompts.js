@@ -30,7 +30,8 @@ function toolCatalog() {
     var t = tools.TOOLS;
     var lines = [];
     for (var k in t) {
-        if (t.hasOwnProperty(k) && t[k].implemented) {
+        // Read-only introspection tools aren't part of a build plan.
+        if (t.hasOwnProperty(k) && t[k].implemented && !t[k].readOnly) {
             lines.push("- " + k + ": " + t[k].describe);
         }
     }
@@ -52,7 +53,14 @@ function buildPlanPrompt(question, context) {
         "not listed, include only the steps you can do and note the gap in 'summary'.",
         "Respond with JSON ONLY — no prose, no markdown code fences. Exact shape:",
         '{ "summary": string, "steps": [ { "tool": string, "label": string, "params": object } ] }',
-        "'label' is a short human-readable description of the step shown to the user."
+        "'label' is a short human-readable description of the step shown to the user.",
+        "PROPERTY PATHS: setProperty/setKeyframes address any property by a 'path' —",
+        "an array of locale-safe matchNames from the layer root. Common matchNames:",
+        "Transform group 'ADBE Transform Group' with 'ADBE Position', 'ADBE Scale',",
+        "'ADBE Rotate Z', 'ADBE Opacity', 'ADBE Anchor Point'; effects live under",
+        "'ADBE Effect Parade'. Prefer the dedicated MVP tools (createComp, createLayer,",
+        "applyEffect, ...) for common actions; use the generic setProperty/setKeyframes",
+        "for properties those don't cover."
     ].join(" ");
 
     return sys +

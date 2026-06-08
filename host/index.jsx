@@ -18,6 +18,11 @@
 #include "tools/setEasing.jsx"
 #include "tools/applyEffect.jsx"
 #include "tools/findAndFixExpressionError.jsx"
+// Phase 1a — generic primitives + introspection
+#include "tools/setProperty.jsx"
+#include "tools/setKeyframes.jsx"
+#include "tools/describeProperty.jsx"
+#include "tools/describeLayer.jsx"
 
 // Sprint-1 smoke test: confirms the evalScript round-trip and JSON contract
 // without touching the project. Read-only, safe in either mode.

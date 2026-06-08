@@ -11,6 +11,7 @@ const btnContext = document.getElementById("btn-context");
 const btnDetect = document.getElementById("btn-detect");
 const btnSolid = document.getElementById("btn-solid");
 const btnTestRename = document.getElementById("btn-test-rename");
+const btnDescribe = document.getElementById("btn-describe");
 const chatLog = document.getElementById("chat-log");
 const chatInput = document.getElementById("chat-input");
 const btnSend = document.getElementById("btn-send");
@@ -135,6 +136,24 @@ btnTestRename.addEventListener("click", () => {
     setStatus("Raw host return:\n" + raw, "");
     btnTestRename.disabled = false;
   });
+});
+
+// Phase 1a: introspect the selected layer's property tree (read-only). Shows the
+// matchNames the agent uses for setProperty/setKeyframes paths.
+btnDescribe.addEventListener("click", async () => {
+  btnDescribe.disabled = true;
+  setStatus("Describing selected layer…");
+  try {
+    const res = await callHost("kinea_describeLayer('{\"layer\":\"selected\"}')");
+    if (res.ok) {
+      appendChat("kinea", "describeLayer:\n" + JSON.stringify(res.result, null, 2));
+      setStatus("Ready.", "ok");
+    } else {
+      setStatus(res.error, "err");
+    }
+  } finally {
+    btnDescribe.disabled = false;
+  }
 });
 
 btnDetect.addEventListener("click", async () => {

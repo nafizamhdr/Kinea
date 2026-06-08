@@ -25,6 +25,10 @@ function kinea_findLayer(comp, spec) {
         if (spec.name !== undefined && spec.name !== null) nm = spec.name;
         else if (typeof spec.layer === "string") nm = spec.layer;
     }
+    // Keywords "selected"/"active" mean "use the selection", not a layer name.
+    if (nm && (String(nm).toLowerCase() === "selected" || String(nm).toLowerCase() === "active")) {
+        nm = null;
+    }
     if (nm) {
         for (var i = 1; i <= comp.numLayers; i++) {
             if (comp.layer(i).name === String(nm)) return comp.layer(i);
@@ -62,4 +66,54 @@ function kinea_findProp(layer, propName) {
     try { var p2 = layer.property(propName); if (p2) return p2; } catch (e3) {}
     if (tg) { try { var p3 = tg.property(propName); if (p3) return p3; } catch (e4) {} }
     return null;
+}
+
+// --- Phase 1 generic helpers --------------------------------------------
+
+function kinea_err(msg) {
+    return JSON.stringify({ ok: false, error: String(msg) });
+}
+
+// Resolve a property-path (array of matchNames/names/indices) from a layer root
+// to a Property/PropertyGroup. Returns { ok, prop } or { ok:false, error }.
+function kinea_resolvePath(layer, path) {
+    if (!path || !path.length) return { ok: false, error: "Empty property path." };
+    var node = layer;
+    for (var i = 0; i < path.length; i++) {
+        var seg = path[i];
+        var next = null;
+        try { next = node.property(seg); } catch (e) { next = null; }
+        if (!next) {
+            return { ok: false, error: "Path segment not found: '" + seg + "' (index " + i + ")." };
+        }
+        node = next;
+    }
+    return { ok: true, prop: node };
+}
+
+// Coerce a JSON value to something AE's setValue accepts (booleans -> 1/0).
+function kinea_coerceValue(v) {
+    if (v === true) return 1;
+    if (v === false) return 0;
+    return v;
+}
+
+// True if a node is a settable leaf Property (not a group).
+function kinea_isLeaf(node) {
+    try { return node.propertyType === PropertyType.PROPERTY; } catch (e) { return false; }
+}
+
+// KeyframeInterpolationType from a friendly name.
+function kinea_interpType(name) {
+    var n = String(name || "").toLowerCase();
+    if (n === "hold") return KeyframeInterpolationType.HOLD;
+    if (n === "linear") return KeyframeInterpolationType.LINEAR;
+    return KeyframeInterpolationType.BEZIER;
+}
+
+function kinea_clampInfluence(v) {
+    var n = (v === undefined || v === null) ? 33.3333 : Number(v);
+    if (n < 0.1) n = 0.1;
+    if (n > 100) n = 100;
+    return n;
 }
