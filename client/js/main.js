@@ -12,6 +12,7 @@ const btnDetect = document.getElementById("btn-detect");
 const btnSolid = document.getElementById("btn-solid");
 const btnTestRename = document.getElementById("btn-test-rename");
 const btnDescribe = document.getElementById("btn-describe");
+const btnListEffects = document.getElementById("btn-list-effects");
 const chatLog = document.getElementById("chat-log");
 const chatInput = document.getElementById("chat-input");
 const btnSend = document.getElementById("btn-send");
@@ -153,6 +154,32 @@ btnDescribe.addEventListener("click", async () => {
     }
   } finally {
     btnDescribe.disabled = false;
+  }
+});
+
+// Phase 1b: list common effects; with a layer selected, marks which matchNames
+// actually resolve on this AE install (available:true/false).
+btnListEffects.addEventListener("click", async () => {
+  btnListEffects.disabled = true;
+  setStatus("Listing effects…");
+  try {
+    const res = await callHost("kinea_listEffects('{}')");
+    if (res.ok) {
+      const r = res.result;
+      const lines = r.effects.map((e) => {
+        const mark = e.available === undefined ? "•" : (e.available ? "✓" : "✗");
+        return `${mark} ${e.name} — ${e.matchName} [${e.category}]`;
+      });
+      const head = r.verifiedAgainstSelection
+        ? "Effects (✓ = addable to the selected layer):"
+        : "Effects (select a layer to verify availability):";
+      appendChat("kinea", `${head}\n${lines.join("\n")}`);
+      setStatus("Ready.", "ok");
+    } else {
+      setStatus(res.error, "err");
+    }
+  } finally {
+    btnListEffects.disabled = false;
   }
 });
 

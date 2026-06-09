@@ -23,6 +23,9 @@
 #include "tools/setKeyframes.jsx"
 #include "tools/describeProperty.jsx"
 #include "tools/describeLayer.jsx"
+// Phase 1b — effect control
+#include "tools/listEffects.jsx"
+#include "tools/removeEffect.jsx"
 
 // Sprint-1 smoke test: confirms the evalScript round-trip and JSON contract
 // without touching the project. Read-only, safe in either mode.

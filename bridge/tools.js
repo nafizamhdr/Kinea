@@ -80,11 +80,13 @@ var TOOLS = {
         hostFn: "kinea_applyEffect",
         implemented: true,
         destructive: false,
-        required: ["effect"],
+        required: [],
         describe: "Apply an effect to a layer. params: layer (name/index, optional), " +
-                  "effect (exact AE effect display name or matchName like " +
-                  "'ADBE Gaussian Blur 2', required), instanceName (string, optional), " +
-                  "settings (optional object of { paramName: value })."
+                  "effectMatchName (matchName like 'ADBE Gaussian Blur 2', required), " +
+                  "instanceName (optional), params (optional array of { path:[matchNames " +
+                  "relative to the effect], value } to set initial parameters). After " +
+                  "applying, tune params with setProperty/setKeyframes using the " +
+                  "effect-relative path."
     },
     findAndFixExpressionError: {
         hostFn: "kinea_findAndFixExpressionError",
@@ -136,6 +138,25 @@ var TOOLS = {
         required: [],
         describe: "Read-only: summarize a layer and its top-level property groups " +
                   "(to discover available matchName paths). params: layer (optional)."
+    },
+
+    // --- Phase 1b: effect control ---
+    listEffects: {
+        hostFn: "kinea_listEffects",
+        implemented: true,
+        destructive: false,
+        readOnly: true,
+        required: [],
+        describe: "Read-only: list common built-in effects (name, matchName, category). " +
+                  "params: filter (optional substring)."
+    },
+    removeEffect: {
+        hostFn: "kinea_removeEffect",
+        implemented: true,
+        destructive: true,
+        required: [],
+        describe: "Remove an effect instance from a layer. params: layer (optional), " +
+                  "effectMatchName or effectIndex. Destructive (removes user content)."
     }
 };
 
